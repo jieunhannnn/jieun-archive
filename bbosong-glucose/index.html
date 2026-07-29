@@ -93,20 +93,6 @@
 <div class="stats" id="stats"></div>
 
 <div class="card">
-  <h2>하루 리듬 (시간대별)</h2>
-  <p class="cap">전체 날짜를 겹쳐 본 시간대별 혈당. 굵은 선이 평균이에요. 파란 음영이 최저점 구간(12–15시).</p>
-  <div id="chart-rhythm"></div>
-  <div class="legend">
-    <span><i class="sw" style="background:var(--avg)"></i>평균</span>
-    <span><i class="sw" style="background:var(--faint);opacity:.4"></i>개별 날</span>
-    <span><i class="sw dot" style="background:var(--low)"></i>저혈당</span>
-    <span><i class="sw" style="background:var(--target);opacity:.5"></i>목표범위</span>
-    <span><i class="sw" style="background:var(--accent);width:3px;height:11px"></i>정규 주사</span>
-    <span><i class="sw" style="background:var(--high);width:3px;height:11px"></i>추가 주사</span>
-  </div>
-</div>
-
-<div class="card">
   <h2>일자별 그래프</h2>
   <p class="cap">하루 곡선. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 빨간 점은 저혈당.</p>
   <div class="nav">
@@ -127,6 +113,20 @@
     <button id="week-next">›</button>
   </div>
   <div id="chart-week"></div>
+</div>
+
+<div class="card">
+  <h2>하루 리듬 (시간대별)</h2>
+  <p class="cap">전체 날짜를 겹쳐 본 시간대별 혈당. 굵은 선이 평균이에요. 파란 음영이 최저점 구간(12–15시).</p>
+  <div id="chart-rhythm"></div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--avg)"></i>평균</span>
+    <span><i class="sw" style="background:var(--faint);opacity:.4"></i>개별 날</span>
+    <span><i class="sw dot" style="background:var(--low)"></i>저혈당</span>
+    <span><i class="sw" style="background:var(--target);opacity:.5"></i>목표범위</span>
+    <span><i class="sw" style="background:var(--accent);width:3px;height:11px"></i>정규 주사</span>
+    <span><i class="sw" style="background:var(--high);width:3px;height:11px"></i>추가 주사</span>
+  </div>
 </div>
 
 <div class="card">
