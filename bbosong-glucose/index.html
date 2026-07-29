@@ -172,17 +172,18 @@
 <script src="data.js"></script>
 <script>
 (function(){
-  const HOURS = Array.from({length:24},(_,i)=>i); // 0~23시 (1시간 간격)
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
 
-  // ---- helpers ----
+  // ---- helpers ---- (pts = [[시각(시,소수), 혈당], ...] 5분 실측)
   const fmtDate = s => { const [,m,d]=s.split('-'); return `${+m}/${+d}`; };
   const flat = arr => arr.reduce((a,b)=>a.concat(b),[]);
-  const allVals = flat(data.map(d=>d.v));
   const mean = a => a.reduce((x,y)=>x+y,0)/a.length;
-  // 실제 극값(max/min 필드 우선, 없으면 2시간 격자에서 계산)
-  const dayMax = d => d.max != null ? d.max : Math.max(...d.v);
-  const dayMin = d => d.min != null ? d.min : Math.min(...d.v, ...(d.lows||[]).map(l=>l.val));
+  const dayVals = d => d.pts.map(p=>p[1]);                 // 그날 혈당값 배열
+  const allVals = flat(data.map(dayVals));
+  const dayMax = d => d.max != null ? d.max : Math.max(...dayVals(d));
+  const dayMin = d => d.min != null ? d.min : Math.min(...dayVals(d));
+  // 시각 [a,b) 구간 평균 (여러 날)
+  const segMean = (days,a,b)=>{ const vs=flat(days.map(d=>d.pts.filter(p=>p[0]>=a&&p[0]<b).map(p=>p[1]))); return vs.length?mean(vs):0; };
   // 점들을 부드러운 곡선(Catmull-Rom→베지어) path로 — 리브레처럼 매끄럽게
   const smoothPath = pts => {
     if(!pts.length) return '';
@@ -195,16 +196,6 @@
       d+=` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
     }
     return d;
-  };
-  // 곡선용 보정 v: 격자가 놓친 실제 최고/최저를 곡선 최고·최저점에 반영(높이 정확, 시각은 근사)
-  const adjV = d => {
-    const vv=d.v.slice();
-    const hi=vv.indexOf(Math.max(...vv)); if(dayMax(d)>vv[hi]) vv[hi]=dayMax(d);
-    // 저혈당 시각엔 곡선도 그 값까지 내려가게
-    (d.lows||[]).forEach(l=>{ const i=Math.round(l.t); if(i>=0&&i<vv.length) vv[i]=Math.min(vv[i],l.val); });
-    // 저혈당 없는 날은 실제 최저점을 곡선에 반영
-    if(!(d.lows&&d.lows.length)){ const lo=vv.indexOf(Math.min(...vv)); if(dayMin(d)<vv[lo]) vv[lo]=dayMin(d); }
-    return vv;
   };
   // 주사 파싱: 'HH:MM' 또는 'HH:MM|g'(글라진=정규) / 'HH:MM|r'(레귤러=추가)
   // 종류가 없으면 시간대로 자동 판정(아침 7~9.5시·저녁 18.5~20.5시=정규)
@@ -266,12 +257,15 @@
 
     // individual days
     data.forEach(d=>{
-      el('path',{class:'dayline',d:smoothPath(adjV(d).map((v,i)=>[x(HOURS[i]),y(v)]))},s);
+      el('path',{class:'dayline',d:smoothPath(d.pts.map(p=>[x(p[0]),y(p[1])]))},s);
     });
-    // average curve
-    const avg=HOURS.map((h,i)=>mean(data.map(d=>d.v[i])));
-    el('path',{class:'avgline',d:smoothPath(avg.map((v,i)=>[x(HOURS[i]),y(v)]))},s);
-    avg.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.4,fill:'#fff',stroke:'var(--avg)','stroke-width':1.6},s));
+    // average curve — 5분 슬롯마다 모든 날 평균
+    const avg=[];
+    for(let m=0;m<1440;m+=5){ const h=m/60;
+      const vs=flat(data.map(d=>d.pts.filter(p=>Math.abs(p[0]-h)<0.042).map(p=>p[1])));
+      if(vs.length) avg.push([x(h),y(mean(vs))]);
+    }
+    el('path',{class:'avgline',d:smoothPath(avg)},s);
 
     // low dots
     lowsAll.forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
@@ -315,7 +309,7 @@
       el('text',{x:x(i),y:H-8,'text-anchor':'middle'},ax).textContent=fmtDate(d.date);});
 
     data.forEach((d,i)=>{
-      const mn=dayMin(d), mx=dayMax(d), av=mean(d.v);
+      const mn=dayMin(d), mx=dayMax(d), av=mean(dayVals(d));
       const isLow=(d.lows||[]).length>0;
       el('line',{x1:x(i),y1:y(mn),x2:x(i),y2:y(mx),stroke:'var(--faint)','stroke-width':3,opacity:.45,'stroke-linecap':'round'},s);
       el('circle',{cx:x(i),cy:y(av),r:3.5,fill:isLow?'var(--low)':'var(--avg)',stroke:'#fff','stroke-width':1.5},s);
@@ -354,12 +348,10 @@
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
       el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
-    const vv=adjV(d);
-    const cpts=vv.map((v,i)=>[x(HOURS[i]),y(v)]);
+    const cpts=d.pts.map(p=>[x(p[0]),y(p[1])]);
     const next=data[dayIdx+1];
-    if(next) cpts.push([x(24),y(next.v[0])]); // 다음 날 0시로 곡선 연결
+    if(next && next.pts.length) cpts.push([x(24),y(next.pts[0][1])]); // 다음 날 첫값으로 연결
     el('path',{class:'avgline',d:smoothPath(cpts)},s);
-    vv.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.6,fill:'#fff',stroke:'var(--avg)','stroke-width':1.6},s));
     (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
     rug(s,x,d.shots,y);
     host.appendChild(s);
@@ -390,10 +382,9 @@
       if(di>0)el('line',{x1:x(di,0),y1:pT,x2:x(di,0),y2:pT+plotH,stroke:'var(--line)','stroke-dasharray':'3 3'},s);
       el('text',{x:x(di,12),y:H-8,'text-anchor':'middle'},ax).textContent=`${+d.date.split('-')[2]}(${weekday(d.date)})`;
     });
-    // 연속 곡선 + 측정점
-    const pts=[]; wk.forEach((d,di)=>adjV(d).forEach((v,i)=>pts.push([x(di,HOURS[i]),y(v)])));
+    // 연속 곡선 (각 날 5분 실측을 이어 붙임)
+    const pts=[]; wk.forEach((d,di)=>d.pts.forEach(p=>pts.push([x(di,p[0]),y(p[1])])));
     el('path',{class:'avgline','stroke-width':2,d:smoothPath(pts)},s);
-    pts.forEach(p=>el('circle',{cx:p[0],cy:p[1],r:1.7,fill:'#fff',stroke:'var(--avg)','stroke-width':1.2},s));
     // 저혈당 + 주사
     wk.forEach((d,di)=>{
       (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(di,l.t),cy:y(l.val),r:3.5},s));
@@ -411,8 +402,7 @@
 
   // ---- 기간 지표 ----
   function periodStats(days){
-    const vals=flat(days.map(d=>d.v));
-    const seg=idxs=>mean(flat(days.map(d=>idxs.map(i=>d.v[i]))));
+    const vals=flat(days.map(dayVals));
     const shotsAll=flat(days.map(d=>(d.shots||[]).map(parseShot)));
     return {
       n:days.length,
@@ -422,10 +412,10 @@
       max:Math.max(...days.map(dayMax)), min:Math.min(...days.map(dayMin)),
       range:Math.round(mean(days.map(d=>dayMax(d)-dayMin(d)))),
       lowDays:days.filter(d=>d.lows&&d.lows.length).length,
-      morning:Math.round(seg([6,7,8,9,10])),   // 6~10시
-      noon:Math.round(seg([12,13,14,15])),     // 12~15시
-      eve:Math.round(seg([18,19,20,21])),      // 18~21시
-      preAM:Math.round(seg([8])), prePM:Math.round(seg([20])),  // 아침 8시·저녁 20시 (정규주사 직전)
+      morning:Math.round(segMean(days,6,10)),    // 6~10시
+      noon:Math.round(segMean(days,12,15)),      // 12~15시
+      eve:Math.round(segMean(days,18,21)),       // 18~21시
+      preAM:Math.round(segMean(days,7.5,8.5)), prePM:Math.round(segMean(days,19.5,20.5)),  // 정규주사 직전
       shots:(shotsAll.length/days.length).toFixed(1),
     };
   }
