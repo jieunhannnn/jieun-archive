@@ -200,7 +200,10 @@
   const adjV = d => {
     const vv=d.v.slice();
     const hi=vv.indexOf(Math.max(...vv)); if(dayMax(d)>vv[hi]) vv[hi]=dayMax(d);
-    const lo=vv.indexOf(Math.min(...vv)); if(dayMin(d)<vv[lo] && !(d.lows&&d.lows.length)) vv[lo]=dayMin(d);
+    // 저혈당 시각엔 곡선도 그 값까지 내려가게
+    (d.lows||[]).forEach(l=>{ const i=Math.round(l.t); if(i>=0&&i<vv.length) vv[i]=Math.min(vv[i],l.val); });
+    // 저혈당 없는 날은 실제 최저점을 곡선에 반영
+    if(!(d.lows&&d.lows.length)){ const lo=vv.indexOf(Math.min(...vv)); if(dayMin(d)<vv[lo]) vv[lo]=dayMin(d); }
     return vv;
   };
   // 주사 파싱: 'HH:MM' 또는 'HH:MM|g'(글라진=정규) / 'HH:MM|r'(레귤러=추가)
