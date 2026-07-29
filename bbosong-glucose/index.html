@@ -136,8 +136,8 @@
       <p class="cap">날짜별 최저–최고 폭과 평균(점). 목표 상한을 바꿔 보세요.</p>
     </div>
     <div class="toggle" id="target-toggle">
-      <button data-hi="180" class="on">엄격 70–180</button>
-      <button data-hi="350">안정 70–350</button>
+      <button data-hi="320" class="on">목표 70–320</button>
+      <button data-hi="180">엄격 70–180</button>
     </div>
   </div>
   <div id="chart-daily"></div>
@@ -220,7 +220,7 @@
     {k:'최고', v:Math.max(...data.map(dayMax)), u:''},
     {k:'최저', v:Math.min(...data.map(dayMin)), u:'', warn:true},
     {k:'저혈당', v:lowDays.size, u:'일', warn:true},
-    {k:'목표(70–180)', v:Math.round(100*allVals.filter(x=>x>=70&&x<=180).length/allVals.length), u:'%'},
+    {k:'목표(70–320)', v:Math.round(100*allVals.filter(x=>x>=70&&x<=320).length/allVals.length), u:'%'},
   ];
   document.getElementById('stats').innerHTML = stats.map(s=>
     `<div class="tile${s.warn?' warn':''}"><div class="k">${s.k}</div>
@@ -248,7 +248,7 @@
     // nadir band 12-15h
     el('rect',{class:'nadir-band',x:x(12),y:pT,width:x(15)-x(12),height:plotH},s);
     // target band 70-180
-    el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
+    el('rect',{x:pL,y:y(320),width:plotW,height:y(70)-y(320),fill:'var(--target-bg)'},s);
 
     // grid
     const g=el('g',{class:'grid'},s);
@@ -285,7 +285,7 @@
   })();
 
   // ============ CHART 2: daily min/max/avg ============
-  let dailyHi=180;
+  let dailyHi=320;
   function drawDaily(){
     const host=document.getElementById('chart-daily'); host.innerHTML='';
     const n=data.length;
@@ -351,7 +351,7 @@
     const yMin=40,yMax=Math.max(420,dayMax(d)+30);
     const x=h=>pL+h/24*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
-    el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
+    el('rect',{x:pL,y:y(320),width:plotW,height:y(70)-y(320),fill:'var(--target-bg)'},s);
     gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400]);
     const ax=el('g',{class:'axis'},s);
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
@@ -384,7 +384,7 @@
     const yMin=40,yMax=Math.max(420,Math.max(...wk.map(dayMax))+20);
     const x=(di,h)=>pL+(di*24+h)/totH*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
-    el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
+    el('rect',{x:pL,y:y(320),width:plotW,height:y(70)-y(320),fill:'var(--target-bg)'},s);
     gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400]);
     // 날짜 경계 + 라벨
     const ax=el('g',{class:'axis'},s);
