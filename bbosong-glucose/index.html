@@ -440,18 +440,20 @@
       const all=periodStats(data), dv=s.avg-all.avg;
       const cmp=Math.abs(dv)<8?`전체(${all.avg})와 비슷했어요`:(dv>0?`전체(${all.avg})보다 조금 높았어요`:`전체(${all.avg})보다 조금 낮았어요`);
       p.push(`이번 주는 평균 <b>${s.avg}</b>로 ${cmp}`);
-      p.push(`목표(100–300) 안에 <b>${s.target}%</b> 머물렀고, 하루 중엔 ${lo[0]}(${lo[1]})이 낮고 <b>${hi[0]}(${hi[1]})</b>이 가장 높았어요`);
+      p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요`);
+      p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높은 흐름이에요`);
     } else {
       const lvl=s.target>=85?'대체로 잘 잡혔어요':s.target>=65?'그런대로 관리됐어요':'높은 편이었어요';
       p.push(`평균 <b>${s.avg}</b>, 목표(100–300) 안에 <b>${s.target}%</b> 있어서 ${lvl}`);
-      p.push(`${lo[0]}(${lo[1]})가 가장 낮고 <b>${hi[0]}(${hi[1]})</b>이 가장 높았어요`);
+      p.push(`이 날 최고 <b>${s.max}</b>·최저 <b>${s.min}</b>까지 갔어요`);
+      p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높았어요`);
     }
     if(s.lowDays>0){
       if(mode==='day'){const l=days[0].lows[0]; p.push(`<span class="low">${l.t}시경 저혈당(${l.val})이 있었어요 ⚠️</span>`);}
       else p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️</span>`);
     } else p.push(`저혈당은 없었어요`);
-    if(s.range>=195) p.push(`혈당 변동폭이 <b>${s.range}</b>으로 큰 편이라 출렁임이 심했어요`);
-    if(s.prePM>=320) p.push(`저녁 주사 직전이 <b>${s.prePM}</b>으로 높아서 저녁 관리가 포인트예요`);
+    if(s.range>=195) p.push(`변동폭이 <b>${s.range}</b>으로 큰 편이라 출렁임이 심했어요`);
+    if(s.prePM>=315) p.push(`저녁 주사 직전이 <b>${s.prePM}</b>으로 높아서 저녁 관리가 포인트예요`);
     return p.join('. ')+'.';
   }
 
