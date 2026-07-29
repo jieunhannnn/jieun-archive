@@ -358,7 +358,10 @@
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
       el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
     const vv=adjV(d);
-    el('path',{class:'avgline',d:smoothPath(vv.map((v,i)=>[x(HOURS[i]),y(v)]))},s);
+    const cpts=vv.map((v,i)=>[x(HOURS[i]),y(v)]);
+    const next=data[dayIdx+1];
+    if(next) cpts.push([x(24),y(next.v[0])]); // 다음 날 0시로 곡선 연결
+    el('path',{class:'avgline',d:smoothPath(cpts)},s);
     vv.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.6,fill:'#fff',stroke:'var(--avg)','stroke-width':1.6},s));
     (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
     rug(s,x,d.shots,y);
