@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>뽀송이 혈당 대시보드</title>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f6f7f9; --line:#e6e8eb;
+    --ink:#16181d; --muted:#6b7280; --faint:#9aa1ab;
+    --glucose:#2f3b52; --avg:#1a2233;
+    --target:#3aa76d; --target-bg:rgba(58,167,109,.10);
+    --low:#e5484d; --high:#d9822b;
+    --accent:#3a6df0;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box;-webkit-text-size-adjust:100%}
+  html,body{margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",
+      "Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--ink);
+    padding:16px 14px calc(28px + env(safe-area-inset-bottom)); max-width:760px; margin:0 auto;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{margin:4px 2px 18px}
+  h1{font-size:19px; font-weight:700; letter-spacing:-.01em; margin:0 0 3px}
+  .sub{font-size:12.5px; color:var(--muted)}
+  .card{
+    background:var(--bg); border:1px solid var(--line); border-radius:16px;
+    padding:16px 15px; margin-bottom:14px; box-shadow:var(--shadow);
+  }
+  .card h2{font-size:14px; font-weight:650; margin:0 0 2px; letter-spacing:-.01em}
+  .card .cap{font-size:11.5px; color:var(--muted); margin:0 0 12px; line-height:1.5}
+
+  /* stat tiles */
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:14px}
+  .tile{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 12px}
+  .tile .k{font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:-.01em}
+  .tile .v{font-size:21px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1}
+  .tile .u{font-size:11px; color:var(--faint); font-weight:500; margin-left:2px}
+  .tile.warn .v{color:var(--low)}
+
+  svg{display:block; width:100%; height:auto; overflow:visible}
+  .grid line{stroke:var(--line); stroke-width:1}
+  .grid text,.axis text{fill:var(--faint); font-size:10px; font-variant-numeric:tabular-nums}
+  .dayline{fill:none; stroke:var(--faint); stroke-width:1; opacity:.16}
+  .avgline{fill:none; stroke:var(--avg); stroke-width:2.5; stroke-linjoin:round; stroke-linecap:round}
+  .lowdot{fill:var(--low); stroke:#fff; stroke-width:1.5}
+  .nadir-band{fill:rgba(58,109,240,.06)}
+
+  .legend{display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; font-size:11.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:5px}
+  .sw{width:14px; height:3px; border-radius:2px; display:inline-block}
+  .sw.dot{width:9px; height:9px; border-radius:50%}
+
+  .insights{list-style:none; padding:0; margin:0}
+  .insights li{display:flex; gap:9px; padding:9px 0; border-top:1px solid var(--line); font-size:13px; line-height:1.5}
+  .insights li:first-child{border-top:0}
+  .insights .ico{flex:none; width:20px; text-align:center}
+  .insights b{font-weight:650}
+
+  .lows-list{display:flex; flex-direction:column; gap:8px}
+  .low-item{display:flex; align-items:center; gap:10px; background:rgba(229,72,77,.06);
+    border:1px solid rgba(229,72,77,.18); border-radius:12px; padding:9px 12px}
+  .low-item .dt{font-weight:650; font-size:13px; font-variant-numeric:tabular-nums}
+  .low-item .meta{font-size:12px; color:var(--muted); margin-left:auto; font-variant-numeric:tabular-nums}
+  .low-item .val{color:var(--low); font-weight:700}
+
+  .note{font-size:11px; color:var(--faint); text-align:center; margin-top:2px; line-height:1.6}
+  .toggle{display:inline-flex; background:var(--surface); border:1px solid var(--line);
+    border-radius:10px; padding:2px; gap:2px; margin-bottom:2px}
+  .toggle button{border:0; background:transparent; font:inherit; font-size:11.5px; font-weight:600;
+    color:var(--muted); padding:5px 11px; border-radius:8px; cursor:pointer}
+  .toggle button.on{background:var(--bg); color:var(--ink); box-shadow:var(--shadow)}
+
+  .nav{display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:12px}
+  .nav button{border:1px solid var(--line); background:var(--surface); border-radius:9px;
+    width:34px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:var(--ink)}
+  .nav button:disabled{opacity:.3; cursor:default}
+  .nav .lbl{font-size:13.5px; font-weight:650; font-variant-numeric:tabular-nums; min-width:150px; text-align:center}
+  .daystat{display:flex; justify-content:center; gap:16px; margin-top:10px; font-size:12px; color:var(--muted)}
+  .daystat b{color:var(--ink); font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐱 뽀송이 혈당 대시보드</h1>
+  <div class="sub">글라진 12 증량 기간 · <span id="range-label"></span></div>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<div class="card">
+  <h2>하루 리듬 (시간대별)</h2>
+  <p class="cap">전체 날짜를 겹쳐 본 시간대별 혈당. 굵은 선이 평균이에요. 파란 음영이 최저점 구간(12–15시).</p>
+  <div id="chart-rhythm"></div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--avg)"></i>평균</span>
+    <span><i class="sw" style="background:var(--faint);opacity:.4"></i>개별 날</span>
+    <span><i class="sw dot" style="background:var(--low)"></i>저혈당</span>
+    <span><i class="sw" style="background:var(--target);opacity:.5"></i>목표범위</span>
+    <span><i class="sw" style="background:var(--accent);width:3px;height:11px"></i>정규 주사</span>
+    <span><i class="sw" style="background:var(--high);width:3px;height:11px"></i>추가 주사</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>일자별 그래프</h2>
+  <p class="cap">하루 곡선. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 빨간 점은 저혈당.</p>
+  <div class="nav">
+    <button id="day-prev">‹</button>
+    <span class="lbl" id="day-label"></span>
+    <button id="day-next">›</button>
+  </div>
+  <div id="chart-oneday"></div>
+  <div class="daystat" id="day-stat"></div>
+</div>
+
+<div class="card">
+  <h2>주간 그래프</h2>
+  <p class="cap">한 주(7일)를 이어 본 곡선. 세로 점선이 날짜 경계예요.</p>
+  <div class="nav">
+    <button id="week-prev">‹</button>
+    <span class="lbl" id="week-label"></span>
+    <button id="week-next">›</button>
+  </div>
+  <div id="chart-week"></div>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+    <div>
+      <h2>일별 추이</h2>
+      <p class="cap">날짜별 최저–최고 폭과 평균(점). 목표 상한을 바꿔 보세요.</p>
+    </div>
+    <div class="toggle" id="target-toggle">
+      <button data-hi="180" class="on">엄격 70–180</button>
+      <button data-hi="350">안정 70–350</button>
+    </div>
+  </div>
+  <div id="chart-daily"></div>
+  <div class="legend">
+    <span><i class="sw dot" style="background:var(--avg)"></i>일 평균</span>
+    <span><i class="sw" style="background:var(--faint);opacity:.5"></i>최저–최고</span>
+    <span><i class="sw dot" style="background:var(--low)"></i>저혈당 발생일</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>패턴 요약</h2>
+  <ul class="insights">
+    <li><span class="ico">🌅</span><div><b>아침 6–10시</b> — 거의 매일 1차 피크. 새벽부터 올라 아침에 최고 찍는 날이 많아요.</div></li>
+    <li><span class="ico">📉</span><div><b>오후 12–3시 최저점</b> — 아침 인슐린 작용이 몰리는 시간. <b>저혈당도 전부 이 구간</b>에서 났어요.</div></li>
+    <li><span class="ico">🌙</span><div><b>저녁 6–9시</b> — 낮에 내려왔다가 다시 오르는 2차 피크.</div></li>
+    <li><span class="ico">💉</span><div><b>주사 타이밍</b> — 아침 7~9시·저녁 19~20시가 정규(파란 눈금), 새벽·오후는 혈당 높을 때 넣는 추가 주사(주황). <b>저혈당 직전엔 오후 추가 주사</b>가 있었어요 (7/11 14:45 → 16시 저혈당).</div></li>
+    <li><span class="ico">🩺</span><div><b>글라진 12 이후</b> — 7/18경부터 새벽 바닥값이 내려오기 시작(165→145). baseline 낮추는 효과가 나타나요.</div></li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>⚠️ 저혈당 이벤트</h2>
+  <p class="cap">70 아래로 떨어진 기록. 전부 오후예요.</p>
+  <div class="lows-list" id="lows-list"></div>
+</div>
+
+<p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  const HOURS = [0,2,4,6,8,10,12,14,16,18,20,22];
+  const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+
+  // ---- helpers ----
+  const fmtDate = s => { const [,m,d]=s.split('-'); return `${+m}/${+d}`; };
+  const flat = arr => arr.reduce((a,b)=>a.concat(b),[]);
+  const allVals = flat(data.map(d=>d.v));
+  const mean = a => a.reduce((x,y)=>x+y,0)/a.length;
+  // 실제 극값(max/min 필드 우선, 없으면 2시간 격자에서 계산)
+  const dayMax = d => d.max != null ? d.max : Math.max(...d.v);
+  const dayMin = d => d.min != null ? d.min : Math.min(...d.v, ...(d.lows||[]).map(l=>l.val));
+  // 곡선용 보정 v: 격자가 놓친 실제 최고/최저를 곡선 최고·최저점에 반영(높이 정확, 시각은 근사)
+  const adjV = d => {
+    const vv=d.v.slice();
+    const hi=vv.indexOf(Math.max(...vv)); if(dayMax(d)>vv[hi]) vv[hi]=dayMax(d);
+    const lo=vv.indexOf(Math.min(...vv)); if(dayMin(d)<vv[lo] && !(d.lows&&d.lows.length)) vv[lo]=dayMin(d);
+    return vv;
+  };
+  // 주사 파싱: 'HH:MM' 또는 'HH:MM|g'(글라진=정규) / 'HH:MM|r'(레귤러=추가)
+  // 종류가 없으면 시간대로 자동 판정(아침 7~9.5시·저녁 18.5~20.5시=정규)
+  const parseShot = s => {
+    const [t,k] = s.split('|');
+    const [h,m] = t.split(':').map(Number);
+    const hf = h + m/60;
+    const reg = k ? (k==='g') : ((hf>=7 && hf<9.5) || (hf>=18.5 && hf<=20.5));
+    return {t, h:hf, reg};
+  };
+
+  // ---- stats ----
+  const lowsAll = flat(data.map(d=>(d.lows||[]).map(l=>({...l,date:d.date}))));
+  const lowDays = new Set(lowsAll.map(l=>l.date));
+  const stats = [
+    {k:'기간', v:data.length, u:'일'},
+    {k:'평균 혈당', v:Math.round(mean(allVals)), u:'mg/dL'},
+    {k:'최고', v:Math.max(...data.map(dayMax)), u:''},
+    {k:'최저', v:Math.min(...data.map(dayMin)), u:'', warn:true},
+    {k:'저혈당', v:lowDays.size, u:'일', warn:true},
+    {k:'목표(70–180)', v:Math.round(100*allVals.filter(x=>x>=70&&x<=180).length/allVals.length), u:'%'},
+  ];
+  document.getElementById('stats').innerHTML = stats.map(s=>
+    `<div class="tile${s.warn?' warn':''}"><div class="k">${s.k}</div>
+     <div class="v">${s.v}<span class="u">${s.u}</span></div></div>`).join('');
+
+  document.getElementById('range-label').textContent =
+    `${fmtDate(data[0].date)} – ${fmtDate(data[data.length-1].date)} (${data.length}일)`;
+
+  // ---- SVG utils ----
+  const NS='http://www.w3.org/2000/svg';
+  function svg(w,h){const s=document.createElementNS(NS,'svg');
+    s.setAttribute('viewBox',`0 0 ${w} ${h}`);s.setAttribute('width','100%');return s;}
+  function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);
+    for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+
+  // ============ CHART 1: rhythm ============
+  (function(){
+    const W=680,H=300, pL=34,pR=12,pT=12,pB=26;
+    const plotW=W-pL-pR, plotH=H-pT-pB;
+    const yMin=40,yMax=420;
+    const x=h=>pL + h/24*plotW;
+    const y=v=>pT + (1-(v-yMin)/(yMax-yMin))*plotH;
+    const s=svg(W,H);
+
+    // nadir band 12-15h
+    el('rect',{class:'nadir-band',x:x(12),y:pT,width:x(15)-x(12),height:plotH},s);
+    // target band 70-180
+    el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
+
+    // grid
+    const g=el('g',{class:'grid'},s);
+    [100,200,300,400].forEach(v=>{
+      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;
+    });
+    const ax=el('g',{class:'axis'},s);
+    [0,3,6,9,12,15,18,21,24].forEach(h=>{
+      el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
+      el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
+
+    // individual days
+    data.forEach(d=>{
+      const pts=adjV(d).map((v,i)=>`${x(HOURS[i])},${y(v)}`).join(' ');
+      el('polyline',{class:'dayline',points:pts},s);
+    });
+    // average curve
+    const avg=HOURS.map((h,i)=>mean(data.map(d=>d.v[i])));
+    el('polyline',{class:'avgline',points:avg.map((v,i)=>`${x(HOURS[i])},${y(v)}`).join(' ')},s);
+
+    // low dots
+    lowsAll.forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
+
+    // injection rug — 하단(42~60 구간)에 주사 시각을 세로선으로. 겹칠수록 진해짐
+    const rugBot=y(43), rugTop=y(60);
+    data.forEach(d=>(d.shots||[]).forEach(str=>{
+      const sh=parseShot(str);
+      el('line',{x1:x(sh.h),y1:rugBot,x2:x(sh.h),y2:rugTop,
+        stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.4,opacity:.38},s);
+    }));
+
+    document.getElementById('chart-rhythm').appendChild(s);
+  })();
+
+  // ============ CHART 2: daily min/max/avg ============
+  let dailyHi=180;
+  function drawDaily(){
+    const host=document.getElementById('chart-daily'); host.innerHTML='';
+    const n=data.length;
+    const W=680,H=300, pL=34,pR=12,pT=12,pB=30;
+    const plotW=W-pL-pR, plotH=H-pT-pB;
+    const yMin=40,yMax=420;
+    const x=i=>pL + (n<=1?plotW/2:i/(n-1)*plotW);
+    const y=v=>pT + (1-(v-yMin)/(yMax-yMin))*plotH;
+    const s=svg(W,H);
+
+    // target band 70-hi
+    el('rect',{x:pL,y:y(dailyHi),width:plotW,height:y(70)-y(dailyHi),fill:'var(--target-bg)'},s);
+
+    const g=el('g',{class:'grid'},s);
+    [100,200,300,400].forEach(v=>{
+      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;
+    });
+    // hi line
+    el('line',{x1:pL,y1:y(dailyHi),x2:W-pR,y2:y(dailyHi),stroke:'var(--high)','stroke-width':1.5,'stroke-dasharray':'4 4',opacity:.7},s);
+
+    const ax=el('g',{class:'axis'},s);
+    data.forEach((d,i)=>{ if(n<=12 || i%2===0)
+      el('text',{x:x(i),y:H-8,'text-anchor':'middle'},ax).textContent=fmtDate(d.date);});
+
+    data.forEach((d,i)=>{
+      const mn=dayMin(d), mx=dayMax(d), av=mean(d.v);
+      const isLow=(d.lows||[]).length>0;
+      el('line',{x1:x(i),y1:y(mn),x2:x(i),y2:y(mx),stroke:'var(--faint)','stroke-width':3,opacity:.45,'stroke-linecap':'round'},s);
+      el('circle',{cx:x(i),cy:y(av),r:3.5,fill:isLow?'var(--low)':'var(--avg)',stroke:'#fff','stroke-width':1.5},s);
+      if(isLow) el('circle',{cx:x(i),cy:y(mn),r:3.5,fill:'var(--low)',stroke:'#fff','stroke-width':1.5},s);
+    });
+    host.appendChild(s);
+  }
+  drawDaily();
+
+  document.querySelectorAll('#target-toggle button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#target-toggle button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); dailyHi=+b.dataset.hi; drawDaily();
+    });
+  });
+
+  // ============ CHART 3: 개별 하루 곡선 ============
+  const WD=['일','월','화','수','목','금','토'];
+  const weekday=s=>WD[new Date(s+'T00:00:00').getDay()];
+  function gridY(s,pL,W,pR,y,vals){const g=el('g',{class:'grid'},s);
+    vals.forEach(v=>{el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;});}
+  function rug(s,xfn,shots,y){const rb=y(43),rt=y(60);
+    (shots||[]).forEach(str=>{const sh=parseShot(str);
+      el('line',{x1:xfn(sh.h),y1:rb,x2:xfn(sh.h),y2:rt,
+        stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.6,opacity:.55},s);});}
+
+  let dayIdx=data.length-1;
+  function drawOneDay(){
+    const host=document.getElementById('chart-oneday'); host.innerHTML='';
+    const d=data[dayIdx];
+    document.getElementById('day-label').textContent=`${fmtDate(d.date)} (${weekday(d.date)})`;
+    document.getElementById('day-prev').disabled=dayIdx===0;
+    document.getElementById('day-next').disabled=dayIdx===data.length-1;
+    const W=680,H=250,pL=34,pR=12,pT=12,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
+    const yMin=40,yMax=Math.max(420,dayMax(d)+30);
+    const x=h=>pL+h/24*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
+    const s=svg(W,H);
+    el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
+    gridY(s,pL,W,pR,y,[100,200,300,400]);
+    const ax=el('g',{class:'axis'},s);
+    [0,3,6,9,12,15,18,21,24].forEach(h=>{
+      el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
+      el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
+    const vv=adjV(d);
+    el('polyline',{class:'avgline',points:vv.map((v,i)=>`${x(HOURS[i])},${y(v)}`).join(' ')},s);
+    vv.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.5,fill:'var(--avg)'},s));
+    (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
+    rug(s,x,d.shots,y);
+    host.appendChild(s);
+    const mx=dayMax(d), mn=dayMin(d);
+    document.getElementById('day-stat').innerHTML=
+      `평균 <b>${Math.round(mean(d.v))}</b> · 최저 <b>${mn}</b> · 최고 <b>${mx}</b> · 주사 <b>${(d.shots||[]).length}</b>회`;
+  }
+  drawOneDay();
+  document.getElementById('day-prev').onclick=()=>{if(dayIdx>0){dayIdx--;drawOneDay();}};
+  document.getElementById('day-next').onclick=()=>{if(dayIdx<data.length-1){dayIdx++;drawOneDay();}};
+
+  // ============ CHART 4: 주간 연속 곡선 ============
+  const weeks=[]; for(let i=0;i<data.length;i+=7) weeks.push(data.slice(i,i+7));
+  let weekIdx=weeks.length-1;
+  function drawWeek(){
+    const host=document.getElementById('chart-week'); host.innerHTML='';
+    const wk=weeks[weekIdx], nd=wk.length, totH=nd*24;
+    document.getElementById('week-label').textContent=`${fmtDate(wk[0].date)} ~ ${fmtDate(wk[nd-1].date)}`;
+    document.getElementById('week-prev').disabled=weekIdx===0;
+    document.getElementById('week-next').disabled=weekIdx===weeks.length-1;
+    const W=680,H=280,pL=34,pR=12,pT=12,pB=32, plotW=W-pL-pR,plotH=H-pT-pB;
+    const yMin=40,yMax=Math.max(420,Math.max(...wk.map(dayMax))+20);
+    const x=(di,h)=>pL+(di*24+h)/totH*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
+    const s=svg(W,H);
+    el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
+    gridY(s,pL,W,pR,y,[100,200,300,400]);
+    // 날짜 경계 + 라벨
+    const ax=el('g',{class:'axis'},s);
+    wk.forEach((d,di)=>{
+      if(di>0)el('line',{x1:x(di,0),y1:pT,x2:x(di,0),y2:pT+plotH,stroke:'var(--line)','stroke-dasharray':'3 3'},s);
+      el('text',{x:x(di,12),y:H-8,'text-anchor':'middle'},ax).textContent=`${+d.date.split('-')[2]}(${weekday(d.date)})`;
+    });
+    // 연속 곡선
+    const pts=[]; wk.forEach((d,di)=>adjV(d).forEach((v,i)=>pts.push(`${x(di,HOURS[i])},${y(v)}`)));
+    el('polyline',{class:'avgline','stroke-width':2,points:pts.join(' ')},s);
+    // 저혈당 + 주사
+    wk.forEach((d,di)=>{
+      (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(di,l.t),cy:y(l.val),r:3.5},s));
+      const rb=y(43),rt=y(60);
+      (d.shots||[]).forEach(str=>{const sh=parseShot(str);
+        el('line',{x1:x(di,sh.h),y1:rb,x2:x(di,sh.h),y2:rt,
+          stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.2,opacity:.5},s);});
+    });
+    host.appendChild(s);
+  }
+  drawWeek();
+  document.getElementById('week-prev').onclick=()=>{if(weekIdx>0){weekIdx--;drawWeek();}};
+  document.getElementById('week-next').onclick=()=>{if(weekIdx<weeks.length-1){weekIdx++;drawWeek();}};
+
+  // ---- lows list ----
+  document.getElementById('lows-list').innerHTML = lowsAll.length ?
+    lowsAll.sort((a,b)=>a.date.localeCompare(b.date)).map(l=>{
+      const day=data.find(d=>d.date===l.date);
+      const prior=(day.shots||[]).map(parseShot).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
+      return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
+       <span class="val">${l.val} mg/dL</span>
+       <span class="meta">${l.t}시경${prior?' · 직전주사 '+prior.t:''}</span></div>`;
+    }).join('')
+    : '<div class="cap">저혈당 기록 없음</div>';
+})();
+</script>
+</body>
+</html>
