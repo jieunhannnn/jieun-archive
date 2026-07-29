@@ -55,6 +55,13 @@
   .sw{width:14px; height:3px; border-radius:2px; display:inline-block}
   .sw.dot{width:9px; height:9px; border-radius:50%}
 
+  .cmp{width:100%; border-collapse:collapse; margin-bottom:16px; font-size:12.5px}
+  .cmp th,.cmp td{padding:7px 6px; text-align:right; border-bottom:1px solid var(--line)}
+  .cmp th:first-child,.cmp td:first-child{text-align:left; color:var(--muted); font-weight:500}
+  .cmp thead th{font-weight:650; color:var(--ink); font-size:11.5px; border-bottom:1.5px solid var(--line)}
+  .cmp td{font-variant-numeric:tabular-nums; font-weight:650; color:var(--ink)}
+  .cmp .sub{font-size:10.5px; color:var(--faint); font-weight:500; margin-left:3px}
+  .cmp .warn{color:var(--low)}
   .insights{list-style:none; padding:0; margin:0}
   .insights li{display:flex; gap:9px; padding:9px 0; border-top:1px solid var(--line); font-size:13px; line-height:1.5}
   .insights li:first-child{border-top:0}
@@ -130,16 +137,8 @@
 </div>
 
 <div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-    <div>
-      <h2>일별 추이</h2>
-      <p class="cap">날짜별 최저–최고 폭과 평균(점). 목표 상한을 바꿔 보세요.</p>
-    </div>
-    <div class="toggle" id="target-toggle">
-      <button data-hi="320" class="on">목표 70–320</button>
-      <button data-hi="180">엄격 70–180</button>
-    </div>
-  </div>
+  <h2>일별 추이</h2>
+  <p class="cap">날짜별 최저–최고 폭과 평균(점). 초록 밴드가 목표(70–320).</p>
   <div id="chart-daily"></div>
   <div class="legend">
     <span><i class="sw dot" style="background:var(--avg)"></i>일 평균</span>
@@ -150,6 +149,7 @@
 
 <div class="card">
   <h2>패턴 요약</h2>
+  <div id="pattern-compare"></div>
   <ul class="insights">
     <li><span class="ico">🌅</span><div><b>아침 6–10시</b> — 거의 매일 1차 피크. 새벽부터 올라 아침에 최고 찍는 날이 많아요.</div></li>
     <li><span class="ico">📉</span><div><b>오후 12–3시 최저점</b> — 아침 인슐린 작용이 몰리는 시간. <b>저혈당도 전부 이 구간</b>에서 났어요.</div></li>
@@ -322,12 +322,6 @@
   }
   drawDaily();
 
-  document.querySelectorAll('#target-toggle button').forEach(b=>{
-    b.addEventListener('click',()=>{
-      document.querySelectorAll('#target-toggle button').forEach(x=>x.classList.remove('on'));
-      b.classList.add('on'); dailyHi=+b.dataset.hi; drawDaily();
-    });
-  });
 
   // ============ CHART 3: 개별 하루 곡선 ============
   const WD=['일','월','화','수','목','금','토'];
@@ -412,6 +406,41 @@
   drawWeek();
   document.getElementById('week-prev').onclick=()=>{if(weekIdx>0){weekIdx--;drawWeek();}};
   document.getElementById('week-next').onclick=()=>{if(weekIdx<weeks.length-1){weekIdx++;drawWeek();}};
+
+  // ---- 패턴 비교 (전체 vs 이번 주) ----
+  function periodStats(days){
+    const vals=flat(days.map(d=>d.v));
+    const seg=idxs=>mean(flat(days.map(d=>idxs.map(i=>d.v[i]))));
+    const shotsAll=flat(days.map(d=>(d.shots||[]).map(parseShot)));
+    return {
+      n:days.length,
+      avg:Math.round(mean(vals)),
+      target:Math.round(100*vals.filter(x=>x>=70&&x<=320).length/vals.length),
+      max:Math.max(...days.map(dayMax)), min:Math.min(...days.map(dayMin)),
+      lowDays:days.filter(d=>d.lows&&d.lows.length).length,
+      morning:Math.round(seg([3,4,5])),  // 6·8·10시
+      noon:Math.round(seg([6,7])),       // 12·14시
+      eve:Math.round(seg([9,10])),       // 18·20시
+      shots:(shotsAll.length/days.length).toFixed(1),
+    };
+  }
+  const A=periodStats(data), Wk=periodStats(weeks[weeks.length-1]);
+  const rows=[
+    ['평균 혈당', A.avg, Wk.avg, ''],
+    ['목표(70–320) 비율', A.target+'%', Wk.target+'%', ''],
+    ['최고 / 최저', A.max+'·'+A.min, Wk.max+'·'+Wk.min, ''],
+    ['저혈당', A.lowDays+'일', Wk.lowDays+'일', 'warn'],
+    ['아침 <span class="sub">6–10시</span>', A.morning, Wk.morning, ''],
+    ['낮 <span class="sub">12–15시</span>', A.noon, Wk.noon, ''],
+    ['저녁 <span class="sub">18–21시</span>', A.eve, Wk.eve, ''],
+    ['하루 주사', A.shots+'회', Wk.shots+'회', ''],
+  ];
+  document.getElementById('pattern-compare').innerHTML=
+    `<table class="cmp"><thead><tr><th>지표</th>
+       <th>전체<span class="sub">${A.n}일</span></th>
+       <th>이번 주<span class="sub">${Wk.n}일</span></th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[3]}">${r[1]}</td><td class="${r[3]}">${r[2]}</td></tr>`).join('')+
+    `</tbody></table>`;
 
   // ---- lows list ----
   document.getElementById('lows-list').innerHTML = lowsAll.length ?
