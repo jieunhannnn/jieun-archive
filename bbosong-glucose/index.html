@@ -188,8 +188,8 @@
     let d='M'+pts[0][0]+','+pts[0][1];
     for(let i=0;i<pts.length-1;i++){
       const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
-      const c1x=p1[0]+(p2[0]-p0[0])/10, c1y=p1[1]+(p2[1]-p0[1])/10;
-      const c2x=p2[0]-(p3[0]-p1[0])/10, c2y=p2[1]-(p3[1]-p1[1])/10;
+      const c1x=p1[0]+(p2[0]-p0[0])/14, c1y=p1[1]+(p2[1]-p0[1])/14;
+      const c2x=p2[0]-(p3[0]-p1[0])/14, c2y=p2[1]-(p3[1]-p1[1])/14;
       d+=` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
     }
     return d;
@@ -252,9 +252,9 @@
 
     // grid
     const g=el('g',{class:'grid'},s);
-    [100,200,300,400].forEach(v=>{
-      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
-      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;
+    [100,150,200,250,300,350,400].forEach(v=>{
+      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
+      if(v%100===0) el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;
     });
     const ax=el('g',{class:'axis'},s);
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
@@ -268,6 +268,7 @@
     // average curve
     const avg=HOURS.map((h,i)=>mean(data.map(d=>d.v[i])));
     el('path',{class:'avgline',d:smoothPath(avg.map((v,i)=>[x(HOURS[i]),y(v)]))},s);
+    avg.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.4,fill:'#fff',stroke:'var(--avg)','stroke-width':1.6},s));
 
     // low dots
     lowsAll.forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
@@ -332,8 +333,8 @@
   const WD=['일','월','화','수','목','금','토'];
   const weekday=s=>WD[new Date(s+'T00:00:00').getDay()];
   function gridY(s,pL,W,pR,y,vals){const g=el('g',{class:'grid'},s);
-    vals.forEach(v=>{el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
-      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;});}
+    vals.forEach(v=>{el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
+      if(v%100===0) el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;});}
   function rug(s,xfn,shots,y){const rb=y(43),rt=y(60);
     (shots||[]).forEach(str=>{const sh=parseShot(str);
       el('line',{x1:xfn(sh.h),y1:rb,x2:xfn(sh.h),y2:rt,
@@ -351,13 +352,14 @@
     const x=h=>pL+h/24*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
-    gridY(s,pL,W,pR,y,[100,200,300,400]);
+    gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400]);
     const ax=el('g',{class:'axis'},s);
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
       el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
     const vv=adjV(d);
     el('path',{class:'avgline',d:smoothPath(vv.map((v,i)=>[x(HOURS[i]),y(v)]))},s);
+    vv.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.6,fill:'#fff',stroke:'var(--avg)','stroke-width':1.6},s));
     (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
     rug(s,x,d.shots,y);
     host.appendChild(s);
@@ -383,16 +385,17 @@
     const x=(di,h)=>pL+(di*24+h)/totH*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(180),width:plotW,height:y(70)-y(180),fill:'var(--target-bg)'},s);
-    gridY(s,pL,W,pR,y,[100,200,300,400]);
+    gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400]);
     // 날짜 경계 + 라벨
     const ax=el('g',{class:'axis'},s);
     wk.forEach((d,di)=>{
       if(di>0)el('line',{x1:x(di,0),y1:pT,x2:x(di,0),y2:pT+plotH,stroke:'var(--line)','stroke-dasharray':'3 3'},s);
       el('text',{x:x(di,12),y:H-8,'text-anchor':'middle'},ax).textContent=`${+d.date.split('-')[2]}(${weekday(d.date)})`;
     });
-    // 연속 곡선
+    // 연속 곡선 + 측정점
     const pts=[]; wk.forEach((d,di)=>adjV(d).forEach((v,i)=>pts.push([x(di,HOURS[i]),y(v)])));
     el('path',{class:'avgline','stroke-width':2,d:smoothPath(pts)},s);
+    pts.forEach(p=>el('circle',{cx:p[0],cy:p[1],r:1.7,fill:'#fff',stroke:'var(--avg)','stroke-width':1.2},s));
     // 저혈당 + 주사
     wk.forEach((d,di)=>{
       (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(di,l.t),cy:y(l.val),r:3.5},s));
