@@ -48,7 +48,6 @@
   .dayline{fill:none; stroke:var(--faint); stroke-width:1; opacity:.16}
   .avgline{fill:none; stroke:var(--avg); stroke-width:2.5; stroke-linjoin:round; stroke-linecap:round}
   .lowdot{fill:var(--low); stroke:#fff; stroke-width:1.5}
-  .nadir-band{fill:rgba(58,109,240,.06)}
 
   .legend{display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; font-size:11.5px; color:var(--muted)}
   .legend span{display:inline-flex; align-items:center; gap:5px}
@@ -127,7 +126,7 @@
 
 <div class="card">
   <h2>하루 리듬 (시간대별)</h2>
-  <p class="cap">전체 날짜를 겹쳐 본 시간대별 혈당. 굵은 선이 평균이에요. 파란 음영이 최저점 구간(12–15시).</p>
+  <p class="cap">전체 날짜를 겹쳐 본 시간대별 혈당. 굵은 선이 평균이에요.</p>
   <div id="chart-rhythm"></div>
   <div class="legend">
     <span><i class="sw" style="background:var(--avg)"></i>평균</span>
@@ -248,8 +247,6 @@
     const y=v=>pT + (1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
 
-    // nadir band 12-15h
-    el('rect',{class:'nadir-band',x:x(12),y:pT,width:x(15)-x(12),height:plotH},s);
     // target band 70-180
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
 
