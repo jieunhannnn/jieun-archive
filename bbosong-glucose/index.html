@@ -181,6 +181,19 @@
   // 실제 극값(max/min 필드 우선, 없으면 2시간 격자에서 계산)
   const dayMax = d => d.max != null ? d.max : Math.max(...d.v);
   const dayMin = d => d.min != null ? d.min : Math.min(...d.v, ...(d.lows||[]).map(l=>l.val));
+  // 점들을 부드러운 곡선(Catmull-Rom→베지어) path로 — 리브레처럼 매끄럽게
+  const smoothPath = pts => {
+    if(!pts.length) return '';
+    if(pts.length<3) return 'M'+pts.map(p=>p.join(',')).join(' L');
+    let d='M'+pts[0][0]+','+pts[0][1];
+    for(let i=0;i<pts.length-1;i++){
+      const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+      const c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+      const c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+      d+=` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
   // 곡선용 보정 v: 격자가 놓친 실제 최고/최저를 곡선 최고·최저점에 반영(높이 정확, 시각은 근사)
   const adjV = d => {
     const vv=d.v.slice();
@@ -250,12 +263,11 @@
 
     // individual days
     data.forEach(d=>{
-      const pts=adjV(d).map((v,i)=>`${x(HOURS[i])},${y(v)}`).join(' ');
-      el('polyline',{class:'dayline',points:pts},s);
+      el('path',{class:'dayline',d:smoothPath(adjV(d).map((v,i)=>[x(HOURS[i]),y(v)]))},s);
     });
     // average curve
     const avg=HOURS.map((h,i)=>mean(data.map(d=>d.v[i])));
-    el('polyline',{class:'avgline',points:avg.map((v,i)=>`${x(HOURS[i])},${y(v)}`).join(' ')},s);
+    el('path',{class:'avgline',d:smoothPath(avg.map((v,i)=>[x(HOURS[i]),y(v)]))},s);
 
     // low dots
     lowsAll.forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
@@ -345,8 +357,7 @@
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
       el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
     const vv=adjV(d);
-    el('polyline',{class:'avgline',points:vv.map((v,i)=>`${x(HOURS[i])},${y(v)}`).join(' ')},s);
-    vv.forEach((v,i)=>el('circle',{cx:x(HOURS[i]),cy:y(v),r:2.5,fill:'var(--avg)'},s));
+    el('path',{class:'avgline',d:smoothPath(vv.map((v,i)=>[x(HOURS[i]),y(v)]))},s);
     (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
     rug(s,x,d.shots,y);
     host.appendChild(s);
@@ -380,8 +391,8 @@
       el('text',{x:x(di,12),y:H-8,'text-anchor':'middle'},ax).textContent=`${+d.date.split('-')[2]}(${weekday(d.date)})`;
     });
     // 연속 곡선
-    const pts=[]; wk.forEach((d,di)=>adjV(d).forEach((v,i)=>pts.push(`${x(di,HOURS[i])},${y(v)}`)));
-    el('polyline',{class:'avgline','stroke-width':2,points:pts.join(' ')},s);
+    const pts=[]; wk.forEach((d,di)=>adjV(d).forEach((v,i)=>pts.push([x(di,HOURS[i]),y(v)])));
+    el('path',{class:'avgline','stroke-width':2,d:smoothPath(pts)},s);
     // 저혈당 + 주사
     wk.forEach((d,di)=>{
       (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(di,l.t),cy:y(l.val),r:3.5},s));
