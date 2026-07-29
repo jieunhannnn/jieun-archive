@@ -412,15 +412,22 @@
     const vals=flat(days.map(d=>d.v));
     const seg=idxs=>mean(flat(days.map(d=>idxs.map(i=>d.v[i]))));
     const shotsAll=flat(days.map(d=>(d.shots||[]).map(parseShot)));
+    const modeHour=hrs=>{const c={};hrs.forEach(h=>c[h]=(c[h]||0)+1);return +Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];};
+    const lowHrs=days.map(d=>(d.lows&&d.lows.length)?d.lows[0].t:HOURS[d.v.indexOf(Math.min(...d.v))]);
+    const highHrs=days.map(d=>HOURS[d.v.indexOf(Math.max(...d.v))]);
     return {
       n:days.length,
       avg:Math.round(mean(vals)),
       target:Math.round(100*vals.filter(x=>x>=70&&x<=320).length/vals.length),
+      over300:Math.round(100*vals.filter(x=>x>300).length/vals.length),
       max:Math.max(...days.map(dayMax)), min:Math.min(...days.map(dayMin)),
+      range:Math.round(mean(days.map(d=>dayMax(d)-dayMin(d)))),
       lowDays:days.filter(d=>d.lows&&d.lows.length).length,
       morning:Math.round(seg([3,4,5])),  // 6·8·10시
       noon:Math.round(seg([6,7])),       // 12·14시
       eve:Math.round(seg([9,10])),       // 18·20시
+      lowT:modeHour(lowHrs), highT:modeHour(highHrs),
+      preAM:Math.round(seg([4])), prePM:Math.round(seg([10])),  // 아침 8시·저녁 20시 (정규주사 직전 근사)
       shots:(shotsAll.length/days.length).toFixed(1),
     };
   }
@@ -428,11 +435,16 @@
   const rows=[
     ['평균 혈당', A.avg, Wk.avg, ''],
     ['목표(70–320) 비율', A.target+'%', Wk.target+'%', ''],
+    ['300 초과 비율', A.over300+'%', Wk.over300+'%', ''],
     ['최고 / 최저', A.max+'·'+A.min, Wk.max+'·'+Wk.min, ''],
+    ['일 변동폭 <span class="sub">최고−최저</span>', A.range, Wk.range, ''],
     ['저혈당', A.lowDays+'일', Wk.lowDays+'일', 'warn'],
     ['아침 <span class="sub">6–10시</span>', A.morning, Wk.morning, ''],
     ['낮 <span class="sub">12–15시</span>', A.noon, Wk.noon, ''],
     ['저녁 <span class="sub">18–21시</span>', A.eve, Wk.eve, ''],
+    ['최저점 시각', A.lowT+'시', Wk.lowT+'시', ''],
+    ['최고점 시각', A.highT+'시', Wk.highT+'시', ''],
+    ['주사 전 <span class="sub">아침·저녁</span>', A.preAM+'·'+A.prePM, Wk.preAM+'·'+Wk.prePM, ''],
     ['하루 주사', A.shots+'회', Wk.shots+'회', ''],
   ];
   document.getElementById('pattern-compare').innerHTML=
