@@ -87,8 +87,12 @@
     width:34px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:var(--ink)}
   .nav button:disabled{opacity:.3; cursor:default}
   .nav .lbl{font-size:13.5px; font-weight:650; font-variant-numeric:tabular-nums; min-width:150px; text-align:center}
-  .daystat{display:flex; justify-content:center; gap:16px; margin-top:10px; font-size:12px; color:var(--muted)}
-  .daystat b{color:var(--ink); font-variant-numeric:tabular-nums}
+  .minigrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(74px,1fr)); gap:8px; margin-top:12px}
+  .minigrid>div{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 9px}
+  .minigrid .k{display:block; font-size:10.5px; color:var(--muted); margin-bottom:3px; letter-spacing:-.01em}
+  .minigrid .v{font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+  .minigrid .v .u{font-size:10.5px; color:var(--faint); font-weight:500}
+  .minigrid .v.warn{color:var(--low)}
 </style>
 </head>
 <body>
@@ -108,7 +112,7 @@
     <button id="day-next">›</button>
   </div>
   <div id="chart-oneday"></div>
-  <div class="daystat" id="day-stat"></div>
+  <div id="day-stat"></div>
 </div>
 
 <div class="card">
@@ -120,6 +124,7 @@
     <button id="week-next">›</button>
   </div>
   <div id="chart-week"></div>
+  <div id="week-stat"></div>
 </div>
 
 <div class="card">
@@ -360,9 +365,7 @@
     (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
     rug(s,x,d.shots,y);
     host.appendChild(s);
-    const mx=dayMax(d), mn=dayMin(d);
-    document.getElementById('day-stat').innerHTML=
-      `평균 <b>${Math.round(mean(d.v))}</b> · 최저 <b>${mn}</b> · 최고 <b>${mx}</b> · 주사 <b>${(d.shots||[]).length}</b>회`;
+    document.getElementById('day-stat').innerHTML=statPanel([d]);
   }
   drawOneDay();
   document.getElementById('day-prev').onclick=()=>{if(dayIdx>0){dayIdx--;drawOneDay();}};
@@ -402,19 +405,17 @@
           stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.2,opacity:.5},s);});
     });
     host.appendChild(s);
+    document.getElementById('week-stat').innerHTML=statPanel(wk);
   }
   drawWeek();
   document.getElementById('week-prev').onclick=()=>{if(weekIdx>0){weekIdx--;drawWeek();}};
   document.getElementById('week-next').onclick=()=>{if(weekIdx<weeks.length-1){weekIdx++;drawWeek();}};
 
-  // ---- 패턴 비교 (전체 vs 이번 주) ----
+  // ---- 기간 지표 ----
   function periodStats(days){
     const vals=flat(days.map(d=>d.v));
     const seg=idxs=>mean(flat(days.map(d=>idxs.map(i=>d.v[i]))));
     const shotsAll=flat(days.map(d=>(d.shots||[]).map(parseShot)));
-    const modeHour=hrs=>{const c={};hrs.forEach(h=>c[h]=(c[h]||0)+1);return +Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];};
-    const lowHrs=days.map(d=>(d.lows&&d.lows.length)?d.lows[0].t:HOURS[d.v.indexOf(Math.min(...d.v))]);
-    const highHrs=days.map(d=>HOURS[d.v.indexOf(Math.max(...d.v))]);
     return {
       n:days.length,
       avg:Math.round(mean(vals)),
@@ -426,11 +427,31 @@
       morning:Math.round(seg([3,4,5])),  // 6·8·10시
       noon:Math.round(seg([6,7])),       // 12·14시
       eve:Math.round(seg([9,10])),       // 18·20시
-      lowT:modeHour(lowHrs), highT:modeHour(highHrs),
       preAM:Math.round(seg([4])), prePM:Math.round(seg([10])),  // 아침 8시·저녁 20시 (정규주사 직전 근사)
       shots:(shotsAll.length/days.length).toFixed(1),
     };
   }
+  // 그날/그주용 지표 그리드
+  function statPanel(days){
+    const s=periodStats(days);
+    const items=[
+      ['평균', s.avg, false],
+      ['목표 70–320', s.target+'<span class="u">%</span>', false],
+      ['300 초과', s.over300+'<span class="u">%</span>', false],
+      ['최고·최저', s.max+'·'+s.min, false],
+      ['변동폭', s.range, false],
+      ['저혈당', s.lowDays+'<span class="u">일</span>', s.lowDays>0],
+      ['아침', s.morning, false],
+      ['낮', s.noon, false],
+      ['저녁', s.eve, false],
+      ['주사전 아·저', s.preAM+'·'+s.prePM, false],
+      ['하루 주사', s.shots+'<span class="u">회</span>', false],
+    ];
+    return '<div class="minigrid">'+items.map(it=>
+      `<div><span class="k">${it[0]}</span><span class="v${it[2]?' warn':''}">${it[1]}</span></div>`).join('')+'</div>';
+  }
+
+  // ---- 통합 비교표 (전체 vs 이번 주, 데이터 추가 시 자동 갱신) ----
   const A=periodStats(data), Wk=periodStats(weeks[weeks.length-1]);
   const rows=[
     ['평균 혈당', A.avg, Wk.avg, ''],
@@ -442,8 +463,6 @@
     ['아침 <span class="sub">6–10시</span>', A.morning, Wk.morning, ''],
     ['낮 <span class="sub">12–15시</span>', A.noon, Wk.noon, ''],
     ['저녁 <span class="sub">18–21시</span>', A.eve, Wk.eve, ''],
-    ['최저점 시각', A.lowT+'시', Wk.lowT+'시', ''],
-    ['최고점 시각', A.highT+'시', Wk.highT+'시', ''],
     ['주사 전 <span class="sub">아침·저녁</span>', A.preAM+'·'+A.prePM, Wk.preAM+'·'+Wk.prePM, ''],
     ['하루 주사', A.shots+'회', Wk.shots+'회', ''],
   ];
