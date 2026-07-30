@@ -442,6 +442,15 @@
       if(mode==='day'){const l=days[0].lows[0]; p.push(`<span class="low">${l.t}시경 저혈당(${l.val})이 있었어요 ⚠️</span>`);}
       else p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️</span>`);
     } else p.push(`저혈당은 없었어요`);
+    // 레귤러(추가 주사) 횟수
+    const regOf = d => (d.shots||[]).filter(x=>!parseShot(x).reg).length;
+    if(mode==='day'){
+      const rc=regOf(days[0]);
+      p.push(rc===0?`레귤러(추가 주사)는 안 맞았어요`:`레귤러(추가 주사)를 <b>${rc}번</b> 맞았어요`);
+    } else {
+      const rcs=days.map(regOf), tot=rcs.reduce((a,b)=>a+b,0), z=rcs.filter(r=>r===0).length;
+      p.push(`레귤러(추가 주사)는 하루 평균 <b>${(tot/days.length).toFixed(1)}번</b> (안 맞은 날 ${z}일·가장 많은 날 ${Math.max(...rcs)}번)`);
+    }
     if(s.range>=195) p.push(`변동폭이 <b>${s.range}</b>으로 큰 편이라 출렁임이 심했어요`);
     if(s.prePM>=315) p.push(`저녁 주사 직전이 <b>${s.prePM}</b>으로 높아서 저녁 관리가 포인트예요`);
     return p.join('. ')+'.';
