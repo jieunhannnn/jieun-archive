@@ -139,14 +139,9 @@
 </div>
 
 <div class="card">
-  <h2>일별 추이</h2>
-  <p class="cap">날짜별 최저–최고 폭과 평균(점). 초록 밴드가 목표(100–300).</p>
-  <div id="chart-daily"></div>
-  <div class="legend">
-    <span><i class="sw dot" style="background:var(--avg)"></i>일 평균</span>
-    <span><i class="sw" style="background:var(--faint);opacity:.5"></i>최저–최고</span>
-    <span><i class="sw dot" style="background:var(--low)"></i>저혈당 발생일</span>
-  </div>
+  <h2>일별 레귤러 주사</h2>
+  <p class="cap">날짜별 레귤러(추가) 주사 횟수. 아래 빨간 점은 저혈당 난 날.</p>
+  <div id="chart-regular"></div>
 </div>
 
 <div class="card">
@@ -288,43 +283,32 @@
     document.getElementById('chart-rhythm').appendChild(s);
   })();
 
-  // ============ CHART 2: daily min/max/avg ============
-  let dailyHi=300;
-  function drawDaily(){
-    const host=document.getElementById('chart-daily'); host.innerHTML='';
+  // ============ CHART 2: 일별 레귤러(추가) 주사 횟수 ============
+  function drawRegular(){
+    const host=document.getElementById('chart-regular'); host.innerHTML='';
     const n=data.length;
-    const W=680,H=300, pL=34,pR=12,pT=12,pB=30;
-    const plotW=W-pL-pR, plotH=H-pT-pB;
-    const yMin=40,yMax=420;
-    const x=i=>pL + (n<=1?plotW/2:i/(n-1)*plotW);
-    const y=v=>pT + (1-(v-yMin)/(yMax-yMin))*plotH;
+    const W=680,H=150, pL=22,pR=12,pT=14,pB=28, plotW=W-pL-pR, plotH=H-pT-pB;
+    const counts=data.map(d=>dayShots(d).filter(sh=>!sh.reg).length);
+    const maxC=Math.max(3,...counts);
+    const x=i=>pL+(i+0.5)/n*plotW, bw=Math.min(20,plotW/n*0.62);
+    const y=c=>pT+(1-c/maxC)*plotH;
     const s=svg(W,H);
-
-    // target band 70-hi
-    el('rect',{x:pL,y:y(dailyHi),width:plotW,height:y(100)-y(dailyHi),fill:'var(--target-bg)'},s);
-
     const g=el('g',{class:'grid'},s);
-    [100,200,300,400].forEach(v=>{
-      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
-      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;
-    });
-    // hi line
-    el('line',{x1:pL,y1:y(dailyHi),x2:W-pR,y2:y(dailyHi),stroke:'var(--high)','stroke-width':1.5,'stroke-dasharray':'4 4',opacity:.7},s);
-
+    for(let c=0;c<=maxC;c++){ el('line',{x1:pL,y1:y(c),x2:W-pR,y2:y(c),opacity:c===0?1:.4},g);
+      el('text',{x:pL-5,y:y(c)+3,'text-anchor':'end'},g).textContent=c; }
     const ax=el('g',{class:'axis'},s);
-    data.forEach((d,i)=>{ if(n<=12 || i%2===0)
-      el('text',{x:x(i),y:H-8,'text-anchor':'middle'},ax).textContent=fmtDate(d.date);});
-
     data.forEach((d,i)=>{
-      const mn=dayMin(d), mx=dayMax(d), av=mean(dayVals(d));
-      const isLow=(d.lows||[]).length>0;
-      el('line',{x1:x(i),y1:y(mn),x2:x(i),y2:y(mx),stroke:'var(--faint)','stroke-width':3,opacity:.45,'stroke-linecap':'round'},s);
-      el('circle',{cx:x(i),cy:y(av),r:3.5,fill:isLow?'var(--low)':'var(--avg)',stroke:'#fff','stroke-width':1.5},s);
-      if(isLow) el('circle',{cx:x(i),cy:y(mn),r:3.5,fill:'var(--low)',stroke:'#fff','stroke-width':1.5},s);
+      const c=counts[i], isLow=(d.lows||[]).length>0;
+      if(c>0){
+        el('rect',{x:x(i)-bw/2,y:y(c),width:bw,height:y(0)-y(c),fill:'var(--high)',rx:2},s);
+        el('text',{x:x(i),y:y(c)-4,'text-anchor':'middle','font-size':'9',fill:'var(--muted)'},s).textContent=c;
+      }
+      if(isLow) el('circle',{cx:x(i),cy:y(0)+9,r:2.6,fill:'var(--low)'},s);
+      if(n<=14 || i%2===0) el('text',{x:x(i),y:H-6,'text-anchor':'middle'},ax).textContent=+d.date.split('-')[2];
     });
     host.appendChild(s);
   }
-  drawDaily();
+  drawRegular();
 
 
   // ============ CHART 3: 개별 하루 곡선 ============
