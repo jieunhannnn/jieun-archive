@@ -419,7 +419,7 @@
     }
     return { stable: tot?Math.round(100*st/tot):0, longest: best };  // stable%: 높을수록 오래 안정 / longest: 분
   }
-  const fmtDur = min => min>=60 ? `${Math.floor(min/60)}시간${min%60?' '+min%60+'분':''}` : `${min}분`;
+  function fmtDur(min){ return min>=60 ? `${Math.floor(min/60)}시간${min%60?' '+min%60+'분':''}` : `${min}분`; }
   function periodStats(days){
     const vals=flat(days.map(dayVals));
     const shotsAll=flat(days.map(dayShots));
