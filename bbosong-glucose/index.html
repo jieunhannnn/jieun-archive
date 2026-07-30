@@ -197,14 +197,21 @@
     }
     return d;
   };
-  // 주사 파싱: 'HH:MM' 또는 'HH:MM|g'(글라진=정규) / 'HH:MM|r'(레귤러=추가)
-  // 종류가 없으면 시간대로 자동 판정(아침 7~9.5시·저녁 18.5~20.5시=정규)
-  const parseShot = s => {
-    const [t,k] = s.split('|');
-    const [h,m] = t.split(':').map(Number);
-    const hf = h + m/60;
-    const reg = k ? (k==='g') : ((hf>=7 && hf<9.5) || (hf>=18.5 && hf<=20.5));
-    return {t, h:hf, reg};
+  // 주사 분류 규칙: 하루에 글라진은 아침 8시경·저녁 8시경 각 1개뿐.
+  // 아침(4~12시)에서 8시 최근접 1개, 저녁(16~24시)에서 20시 최근접 1개만 글라진(정규), 나머지 전부 레귤러(추가).
+  // 'HH:MM|g'/'HH:MM|r' 수동 표시가 있으면 그게 우선.
+  const dayShots = d => {
+    const arr=(d.shots||[]).map(s=>{
+      const [t,k]=s.split('|');
+      const [h,m]=t.split(':').map(Number);
+      return {t, h:h+m/60, k:k||null, reg:k==='g'};
+    });
+    [[8,4,12],[20,16,24]].forEach(([anchor,lo,hi])=>{
+      if(arr.some(sh=>sh.k==='g' && sh.h>=lo && sh.h<hi)) return; // 수동 글라진 있으면 그대로
+      const cand=arr.filter(sh=>!sh.k && sh.h>=lo && sh.h<hi);
+      if(cand.length) cand.reduce((a,b)=>Math.abs(b.h-anchor)<Math.abs(a.h-anchor)?b:a).reg=true;
+    });
+    return arr;
   };
 
   // ---- stats ----
@@ -272,8 +279,7 @@
 
     // injection rug — 하단(42~60 구간)에 주사 시각을 세로선으로. 겹칠수록 진해짐
     const rugBot=y(43), rugTop=y(60);
-    data.forEach(d=>(d.shots||[]).forEach(str=>{
-      const sh=parseShot(str);
+    data.forEach(d=>dayShots(d).forEach(sh=>{
       el('line',{x1:x(sh.h),y1:rugBot,x2:x(sh.h),y2:rugTop,
         stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.4,opacity:.38},s);
     }));
@@ -326,8 +332,8 @@
   function gridY(s,pL,W,pR,y,vals){const g=el('g',{class:'grid'},s);
     vals.forEach(v=>{el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
       if(v%100===0) el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;});}
-  function rug(s,xfn,shots,y){const rb=y(43),rt=y(60);
-    (shots||[]).forEach(str=>{const sh=parseShot(str);
+  function rug(s,xfn,d,y){const rb=y(43),rt=y(60);
+    dayShots(d).forEach(sh=>{
       el('line',{x1:xfn(sh.h),y1:rb,x2:xfn(sh.h),y2:rt,
         stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.6,opacity:.55},s);});}
 
@@ -353,7 +359,7 @@
     if(next && next.pts.length) cpts.push([x(24),y(next.pts[0][1])]); // 다음 날 첫값으로 연결
     el('path',{class:'avgline',d:smoothPath(cpts)},s);
     (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(l.t),cy:y(l.val),r:4},s));
-    rug(s,x,d.shots,y);
+    rug(s,x,d,y);
     host.appendChild(s);
     document.getElementById('day-stat').innerHTML=interp([d],'day');
   }
@@ -389,7 +395,7 @@
     wk.forEach((d,di)=>{
       (d.lows||[]).forEach(l=>el('circle',{class:'lowdot',cx:x(di,l.t),cy:y(l.val),r:3.5},s));
       const rb=y(43),rt=y(60);
-      (d.shots||[]).forEach(str=>{const sh=parseShot(str);
+      dayShots(d).forEach(sh=>{
         el('line',{x1:x(di,sh.h),y1:rb,x2:x(di,sh.h),y2:rt,
           stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.2,opacity:.5},s);});
     });
@@ -403,7 +409,7 @@
   // ---- 기간 지표 ----
   function periodStats(days){
     const vals=flat(days.map(dayVals));
-    const shotsAll=flat(days.map(d=>(d.shots||[]).map(parseShot)));
+    const shotsAll=flat(days.map(dayShots));
     return {
       n:days.length,
       avg:Math.round(mean(vals)),
@@ -443,7 +449,7 @@
       else p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️</span>`);
     } else p.push(`저혈당은 없었어요`);
     // 레귤러(추가 주사) 횟수
-    const regOf = d => (d.shots||[]).filter(x=>!parseShot(x).reg).length;
+    const regOf = d => dayShots(d).filter(sh=>!sh.reg).length;
     if(mode==='day'){
       const rc=regOf(days[0]);
       p.push(rc===0?`레귤러(추가 주사)는 안 맞았어요`:`레귤러(추가 주사)를 <b>${rc}번</b> 맞았어요`);
@@ -482,7 +488,7 @@
   document.getElementById('lows-list').innerHTML = lowsAll.length ?
     lowsAll.sort((a,b)=>a.date.localeCompare(b.date)).map(l=>{
       const day=data.find(d=>d.date===l.date);
-      const prior=(day.shots||[]).map(parseShot).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
+      const prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
        <span class="meta">${l.t}시경${prior?' · 직전주사 '+prior.t:''}</span></div>`;
