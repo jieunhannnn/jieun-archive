@@ -176,6 +176,7 @@
 
   // ---- helpers ---- (pts = [[시각(시,소수), 혈당], ...] 5분 실측)
   const fmtDate = s => { const [,m,d]=s.split('-'); return `${+m}/${+d}`; };
+  const fmtT = h => `${Math.floor(h)}:${String(Math.round(h%1*60)).padStart(2,'0')}`; // 13.7 → "13:42"
   const flat = arr => arr.reduce((a,b)=>a.concat(b),[]);
   const mean = a => a.reduce((x,y)=>x+y,0)/a.length;
   const dayVals = d => d.pts.map(p=>p[1]);                 // 그날 혈당값 배열
@@ -454,7 +455,7 @@
       p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높았어요`);
     }
     if(s.lowDays>0){
-      if(mode==='day'){const l=days[0].lows[0]; p.push(`<span class="low">${l.t}시경 저혈당(${l.val})이 있었어요 ⚠️</span>`);}
+      if(mode==='day'){const l=days[0].lows[0]; p.push(`<span class="low">${fmtT(l.t)}경 저혈당(${l.val})이 있었어요 ⚠️</span>`);}
       else p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️</span>`);
     } else p.push(`저혈당은 없었어요`);
     // 레귤러(추가 주사) 횟수
@@ -506,7 +507,7 @@
       const prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
-       <span class="meta">${l.t}시경${prior?' · 직전주사 '+prior.t:''}</span></div>`;
+       <span class="meta">${fmtT(l.t)}경${prior?' · 직전주사 '+prior.t:''}</span></div>`;
     }).join('')
     : '<div class="cap">저혈당 기록 없음</div>';
 })();
