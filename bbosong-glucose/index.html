@@ -135,6 +135,7 @@
     <button id="month-next">›</button>
   </div>
   <div id="chart-month"></div>
+  <div id="month-stat" class="interp"></div>
 </div>
 
 <div class="card">
@@ -480,7 +481,30 @@
   Object.values(sumByMonth).forEach(a=>a.sort((x,y)=>x.date.localeCompare(y.date)));
   const monthKeys=Object.keys(sumByMonth).sort();
 
+  // 글라진 월 대표 용량 (1~3월=건강기록 메모 평균, 4~6월=인슐린 시트, 7월=10→12 (7/9 증량))
+  const DOSE={'2026-01':{v:5.2,l:'5.2'},'2026-02':{v:7.6,l:'7.6'},'2026-03':{v:8.8,l:'8.8'},
+              '2026-04':{v:10,l:'10'},'2026-05':{v:10,l:'10'},'2026-06':{v:10,l:'10'},'2026-07':{v:11.5,l:'10→12'}};
+
   // ============ 월간 그래프 (한 달 연속 곡선, 30분 간격) ============
+  function monthInterp(mk, ds){
+    const avg=Math.round(mean(ds.map(x=>x.avg)));
+    const mx=Math.max(...ds.map(x=>x.max)), mn=Math.min(...ds.map(x=>x.min));
+    const tir=Math.round(mean(ds.map(x=>x.tir)));
+    const stb=Math.round(mean(ds.map(x=>x.stable)));
+    const lr=ds.reduce((a,x)=>a+(x.lowsR||0),0), lc=ds.reduce((a,x)=>a+(x.lowsC||0),0);
+    const j=monthKeys.indexOf(mk), p=[];
+    let head=`${+mk.slice(5)}월은 평균 <b>${avg}</b>`;
+    if(j>0){ const pv=Math.round(mean(sumByMonth[monthKeys[j-1]].map(x=>x.avg))), dv=avg-pv;
+      head+= dv<=-8?`로 전월(${pv})보다 <b>▼${-dv}</b> 내려왔어요`: dv>=8?`로 전월(${pv})보다 ▲${dv} 올랐어요`:`로 전월(${pv})과 비슷했어요`; }
+    else head+='이었어요';
+    p.push(head);
+    p.push(`최고 <b>${mx}</b>·최저 <b>${mn}</b>, 목표(100–300) 안엔 <b>${tir}%</b>, 보폭은 ${stb}%가 완만했어요`);
+    if(lr) p.push(`<span class="low">진짜 저혈당 ${lr}구간 ⚠️</span>${lc?` (🛏️ 압박 의심 ${lc}구간 별도)`:''}`);
+    else if(lc) p.push(`저혈당 기록 ${lc}구간은 모두 🛏️ 센서 압박 의심이에요`);
+    else p.push('저혈당은 없었어요');
+    if(DOSE[mk]) p.push(`글라진은 <b>${DOSE[mk].l}u</b>였어요`);
+    return p.join('. ')+'.';
+  }
   let monthIdx=monthKeys.length-1;
   function drawMonth(){
     const host=document.getElementById('chart-month'); host.innerHTML='';
@@ -522,6 +546,7 @@
       }
     });
     host.appendChild(s);
+    document.getElementById('month-stat').innerHTML=monthInterp(mk,ds);
   }
   drawMonth();
   document.getElementById('month-prev').onclick=()=>{if(monthIdx>0){monthIdx--;drawMonth();}};
@@ -568,9 +593,7 @@
     });
     host.appendChild(s);
 
-    // 글라진 월평균 1회 용량 미니 차트 (1~3월=건강기록 메모 평균, 4~6월=인슐린 시트, 7월=10→12 (7/9 증량))
-    const DOSE={'2026-01':{v:5.2,l:'5.2'},'2026-02':{v:7.6,l:'7.6'},'2026-03':{v:8.8,l:'8.8'},
-                '2026-04':{v:10,l:'10'},'2026-05':{v:10,l:'10'},'2026-06':{v:10,l:'10'},'2026-07':{v:11.5,l:'10→12'}};
+    // 글라진 월평균 1회 용량 미니 차트 (DOSE는 공용 정의)
     const host2=document.getElementById('chart-dose');
     const H2=100,pT2=18,pB2=8,plotH2=H2-pT2-pB2;
     const y2=v=>pT2+(1-v/14)*plotH2;
