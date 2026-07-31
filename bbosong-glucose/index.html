@@ -146,6 +146,8 @@
   <h2>월별 추이 (1월~)</h2>
   <p class="cap">월별 평균(점·선)과 최저–최고 폭. 파란 점선이 글라진 12 증량(7/9). 빨간 숫자는 진짜 저혈당 구간 수.</p>
   <div id="chart-monthly"></div>
+  <p class="cap" style="margin:12px 0 0">글라진 1회 용량 추이 (u) · 1~3월은 기록 메모 평균</p>
+  <div id="chart-dose"></div>
   <div id="monthly-table"></div>
   <div id="monthly-note" class="interp"></div>
 </div>
@@ -561,6 +563,22 @@
       el('text',{x:x(i),y:y(mm.avg)-9,'text-anchor':'middle','font-size':'10','font-weight':'650',fill:'var(--ink)'},s).textContent=mm.avg;
     });
     host.appendChild(s);
+
+    // 글라진 월평균 1회 용량 미니 차트 (1~3월=건강기록 메모 평균, 4~6월=인슐린 시트, 7월=10→12 (7/9 증량))
+    const DOSE={'2026-01':{v:5.2,l:'5.2'},'2026-02':{v:7.6,l:'7.6'},'2026-03':{v:8.8,l:'8.8'},
+                '2026-04':{v:10,l:'10'},'2026-05':{v:10,l:'10'},'2026-06':{v:10,l:'10'},'2026-07':{v:11.5,l:'10→12'}};
+    const host2=document.getElementById('chart-dose');
+    const H2=100,pT2=18,pB2=8,plotH2=H2-pT2-pB2;
+    const y2=v=>pT2+(1-v/14)*plotH2;
+    const s2=svg(W,H2);
+    el('line',{x1:pL,y1:y2(0),x2:W-pR,y2:y2(0),stroke:'var(--line)'},s2);
+    const dpts=months.map((m,i)=>DOSE[m]?[x(i),y2(DOSE[m].v)]:null).filter(Boolean);
+    el('path',{fill:'none',stroke:'var(--accent)','stroke-width':2,d:smoothPath(dpts)},s2);
+    months.forEach((m,i)=>{const dd=DOSE[m]; if(!dd) return;
+      el('circle',{cx:x(i),cy:y2(dd.v),r:3,fill:'var(--accent)',stroke:'#fff','stroke-width':1.2},s2);
+      el('text',{x:x(i),y:y2(dd.v)-7,'text-anchor':'middle','font-size':'10','font-weight':'650',fill:'var(--accent)'},s2).textContent=dd.l;
+    });
+    host2.appendChild(s2);
 
     // 표
     document.getElementById('monthly-table').innerHTML=
