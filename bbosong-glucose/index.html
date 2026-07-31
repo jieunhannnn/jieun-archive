@@ -85,7 +85,9 @@
   .nav button{border:1px solid var(--line); background:var(--surface); border-radius:9px;
     width:34px; height:30px; font-size:16px; line-height:1; cursor:pointer; color:var(--ink)}
   .nav button:disabled{opacity:.3; cursor:default}
-  .nav .lbl{font-size:13.5px; font-weight:650; font-variant-numeric:tabular-nums; min-width:150px; text-align:center}
+  .nav .lbl{position:relative; font-size:13.5px; font-weight:650; font-variant-numeric:tabular-nums; min-width:150px; text-align:center}
+  .nav .lbl::after{content:'▾'; font-size:9px; color:var(--faint); margin-left:4px}
+  .nav .jump{position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; border:0; padding:0; margin:0}
   .interp{margin-top:12px; font-size:13px; line-height:1.8; color:var(--ink);
     background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
   .interp b{font-weight:700; font-variant-numeric:tabular-nums}
@@ -105,7 +107,7 @@
   <p class="cap">하루 곡선. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 빨간 점은 저혈당 (빈 점은 🛏️ 센서 압박 의심).</p>
   <div class="nav">
     <button id="day-prev">‹</button>
-    <span class="lbl" id="day-label"></span>
+    <span class="lbl"><span id="day-label"></span><input type="date" class="jump" id="day-jump"></span>
     <button id="day-next">›</button>
   </div>
   <div id="chart-oneday"></div>
@@ -117,7 +119,7 @@
   <p class="cap">한 주(7일)를 이어 본 곡선. 세로 점선이 날짜 경계예요.</p>
   <div class="nav">
     <button id="week-prev">‹</button>
-    <span class="lbl" id="week-label"></span>
+    <span class="lbl"><span id="week-label"></span><select class="jump" id="week-jump"></select></span>
     <button id="week-next">›</button>
   </div>
   <div id="chart-week"></div>
@@ -131,7 +133,7 @@
   <p class="cap">한 달 전체를 이어 본 곡선(30분 간격 실측). 빨간 점은 저혈당(빈 점=🛏️ 압박 의심).</p>
   <div class="nav">
     <button id="month-prev">‹</button>
-    <span class="lbl" id="month-label"></span>
+    <span class="lbl"><span id="month-label"></span><select class="jump" id="month-jump"></select></span>
     <button id="month-next">›</button>
   </div>
   <div id="chart-month"></div>
@@ -242,6 +244,16 @@
     s.setAttribute('viewBox',`0 0 ${w} ${h}`);s.setAttribute('width','100%');return s;}
   function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);
     for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+  // 차트 좌우 스와이프 → 이전/다음
+  function addSwipe(id,onPrev,onNext){
+    const elm=document.getElementById(id); if(!elm) return;
+    let sx=0,sy=0;
+    elm.addEventListener('touchstart',e=>{sx=e.touches[0].clientX; sy=e.touches[0].clientY;},{passive:true});
+    elm.addEventListener('touchend',e=>{
+      const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+      if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)*1.5){ dx<0?onNext():onPrev(); }
+    },{passive:true});
+  }
 
   // ============ 주간 레귤러(추가) 주사 막대 (주간 그래프 하단) ============
   function drawWeekRegular(wk){
@@ -286,6 +298,7 @@
     const host=document.getElementById('chart-oneday'); host.innerHTML='';
     const d=data[dayIdx];
     document.getElementById('day-label').textContent=`${fmtDate(d.date)} (${weekday(d.date)})`;
+    const _dj=document.getElementById('day-jump'); if(_dj) _dj.value=d.date;
     document.getElementById('day-prev').disabled=dayIdx===0;
     document.getElementById('day-next').disabled=dayIdx===data.length-1;
     const W=680,H=250,pL=34,pR=12,pT=12,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
@@ -312,8 +325,13 @@
     document.getElementById('day-stat').innerHTML=interp([d],'day');
   }
   drawOneDay();
-  document.getElementById('day-prev').onclick=()=>{if(dayIdx>0){dayIdx--;drawOneDay();}};
-  document.getElementById('day-next').onclick=()=>{if(dayIdx<data.length-1){dayIdx++;drawOneDay();}};
+  function goDay(dl){const i=dayIdx+dl; if(i>=0&&i<data.length){dayIdx=i;drawOneDay();}}
+  document.getElementById('day-prev').onclick=()=>goDay(-1);
+  document.getElementById('day-next').onclick=()=>goDay(1);
+  addSwipe('chart-oneday',()=>goDay(-1),()=>goDay(1));
+  (function(){const j=document.getElementById('day-jump'); if(!j)return;
+    j.min=data[0].date; j.max=data[data.length-1].date;
+    j.onchange=()=>{const i=data.findIndex(d=>d.date===j.value); if(i>=0){dayIdx=i;drawOneDay();}};})();
 
   // ============ CHART 4: 주간 연속 곡선 ============
   const weeks=[]; for(let i=0;i<data.length;i+=7) weeks.push(data.slice(i,i+7));
@@ -322,6 +340,7 @@
     const host=document.getElementById('chart-week'); host.innerHTML='';
     const wk=weeks[weekIdx], nd=wk.length, totH=nd*24;
     document.getElementById('week-label').textContent=`${fmtDate(wk[0].date)} ~ ${fmtDate(wk[nd-1].date)}`;
+    const _wj=document.getElementById('week-jump'); if(_wj) _wj.value=String(weekIdx);
     document.getElementById('week-prev').disabled=weekIdx===0;
     document.getElementById('week-next').disabled=weekIdx===weeks.length-1;
     const W=680,H=280,pL=34,pR=12,pT=12,pB=32, plotW=W-pL-pR,plotH=H-pT-pB;
@@ -352,8 +371,14 @@
     document.getElementById('week-stat').innerHTML=interp(wk,'week');
   }
   drawWeek();
-  document.getElementById('week-prev').onclick=()=>{if(weekIdx>0){weekIdx--;drawWeek();}};
-  document.getElementById('week-next').onclick=()=>{if(weekIdx<weeks.length-1){weekIdx++;drawWeek();}};
+  function goWeek(dl){const i=weekIdx+dl; if(i>=0&&i<weeks.length){weekIdx=i;drawWeek();}}
+  document.getElementById('week-prev').onclick=()=>goWeek(-1);
+  document.getElementById('week-next').onclick=()=>goWeek(1);
+  addSwipe('chart-week',()=>goWeek(-1),()=>goWeek(1));
+  (function(){const j=document.getElementById('week-jump'); if(!j)return;
+    j.innerHTML=weeks.map((wk,i)=>`<option value="${i}">${fmtDate(wk[0].date)} ~ ${fmtDate(wk[wk.length-1].date)}</option>`).join('');
+    j.value=String(weekIdx);
+    j.onchange=()=>{weekIdx=+j.value;drawWeek();};})();
 
   // ---- 기간 지표 ----
   // 하루 안정성(보폭 기반): 30분 보폭 |Δ|≤35인 시간 비율 + 최장 완만 구간(분)
@@ -511,6 +536,7 @@
     const mk=monthKeys[monthIdx], ds=sumByMonth[mk];
     const dim=new Date(+mk.slice(0,4), +mk.slice(5,7), 0).getDate();
     document.getElementById('month-label').textContent=`2026년 ${+mk.slice(5)}월`;
+    const _mj=document.getElementById('month-jump'); if(_mj) _mj.value=mk;
     document.getElementById('month-prev').disabled=monthIdx===0;
     document.getElementById('month-next').disabled=monthIdx===monthKeys.length-1;
     const W=680,H=290,pL=34,pR=12,pT=14,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
@@ -549,8 +575,14 @@
     document.getElementById('month-stat').innerHTML=monthInterp(mk,ds);
   }
   drawMonth();
-  document.getElementById('month-prev').onclick=()=>{if(monthIdx>0){monthIdx--;drawMonth();}};
-  document.getElementById('month-next').onclick=()=>{if(monthIdx<monthKeys.length-1){monthIdx++;drawMonth();}};
+  function goMonth(dl){const i=monthIdx+dl; if(i>=0&&i<monthKeys.length){monthIdx=i;drawMonth();}}
+  document.getElementById('month-prev').onclick=()=>goMonth(-1);
+  document.getElementById('month-next').onclick=()=>goMonth(1);
+  addSwipe('chart-month',()=>goMonth(-1),()=>goMonth(1));
+  (function(){const j=document.getElementById('month-jump'); if(!j)return;
+    j.innerHTML=monthKeys.map(m=>`<option value="${m}">${+m.slice(0,4)}년 ${+m.slice(5)}월</option>`).join('');
+    j.value=monthKeys[monthIdx];
+    j.onchange=()=>{monthIdx=monthKeys.indexOf(j.value);drawMonth();};})();
 
   // ============ 월별 추이 (요약) ============
   (function(){
