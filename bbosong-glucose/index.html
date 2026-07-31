@@ -173,6 +173,8 @@
   const mean = a => a.reduce((x,y)=>x+y,0)/a.length;
   const dayVals = d => d.pts.map(p=>p[1]);                 // 그날 혈당값 배열
   const bgAt = (d,h)=>{ let b=null; d.pts.forEach(p=>{ if(b===null||Math.abs(p[0]-h)<Math.abs(b[0]-h)) b=p; }); return b?b[1]:null; }; // 특정 시각 혈당
+  // 센서 압박 의심: 저혈당 후 15분 내 +100 이상 급반등 = 압박 해제 시그니처 (진짜 저혈당은 회복이 느림)
+  const suspectCompression = (d,l)=> d.pts.some(p=>p[0]>l.t && p[0]<=l.t+0.26 && p[1]>=l.val+100);
   const allVals = flat(data.map(dayVals));
   const dayMax = d => d.max != null ? d.max : Math.max(...dayVals(d));
   const dayMin = d => d.min != null ? d.min : Math.min(...dayVals(d));
@@ -443,7 +445,8 @@
       p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높았어요`);
     }
     if(s.lowDays>0){
-      if(mode==='day'){const l=days[0].lows[0]; p.push(`<span class="low">${fmtT(l.t)}경 저혈당(${l.val})이 있었어요 ⚠️</span>`);}
+      if(mode==='day'){const l=days[0].lows[0]; const comp=suspectCompression(days[0],l);
+        p.push(`<span class="low">${fmtT(l.t)}경 저혈당(${l.val})이 있었어요 ⚠️</span>${comp?' — 직후 급반등해서 <b>센서 압박(깔고 누움) 의심</b>, 실제 저혈당이 아닐 수 있어요':''}`);}
       else p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️</span>`);
     } else p.push(`저혈당은 없었어요`);
     // 레귤러(추가 주사) 횟수
@@ -498,9 +501,10 @@
       const prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
       let pinfo='';
       if(prior){ const bg=bgAt(day,prior.h); pinfo=` · 직전주사 ${prior.t} ${prior.reg?'글라진':'레귤러'}${bg!=null?`(${bg})`:''}`; }
+      const comp=suspectCompression(day,l)?' · 🛏️ 센서 압박 의심':'';
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
-       <span class="meta">${fmtT(l.t)}경${pinfo}</span></div>`;
+       <span class="meta">${fmtT(l.t)}경${pinfo}${comp}</span></div>`;
     }).join('')
     : '<div class="cap">저혈당 기록 없음</div>';
 })();
