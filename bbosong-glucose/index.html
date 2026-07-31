@@ -351,11 +351,21 @@
     });
     Object.keys(byWk).sort().forEach(k=>weeks.push(byWk[k]));
   }
+  // "7월 3주차" — 그 달 1일이 포함된 주(월~일)를 1주차로 (귀속 달은 그 주 목요일 기준)
+  function weekTitle(wk){
+    const dt=new Date(wk[0].date+'T00:00:00');
+    const mon=new Date(dt); mon.setDate(dt.getDate()-((dt.getDay()+6)%7));
+    const thu=new Date(mon); thu.setDate(mon.getDate()+3);
+    const first=new Date(thu.getFullYear(), thu.getMonth(), 1);
+    const firstMon=new Date(first); firstMon.setDate(first.getDate()-((first.getDay()+6)%7));
+    const n=Math.round((mon-firstMon)/(7*86400000))+1;
+    return `${thu.getMonth()+1}월 ${n}주차`;
+  }
   let weekIdx=weeks.length-1;
   function drawWeek(){
     const host=document.getElementById('chart-week'); host.innerHTML='';
     const wk=weeks[weekIdx], nd=wk.length, totH=nd*24;
-    document.getElementById('week-label').textContent=`${fmtDate(wk[0].date)} ~ ${fmtDate(wk[nd-1].date)}`;
+    document.getElementById('week-label').textContent=`${weekTitle(wk)} · ${fmtDate(wk[0].date)}~${fmtDate(wk[nd-1].date)}`;
     const _wj=document.getElementById('week-jump'); if(_wj) _wj.value=String(weekIdx);
     document.getElementById('week-prev').disabled=weekIdx===0;
     document.getElementById('week-next').disabled=weekIdx===weeks.length-1;
@@ -394,7 +404,7 @@
   addSwipe('chart-week',()=>goWeek(-1),()=>goWeek(1));
   document.getElementById('week-today').onclick=()=>{weekIdx=weeks.length-1;drawWeek();};
   (function(){const j=document.getElementById('week-jump'); if(!j)return;
-    j.innerHTML=weeks.map((wk,i)=>`<option value="${i}">${fmtDate(wk[0].date)} ~ ${fmtDate(wk[wk.length-1].date)}</option>`).join('');
+    j.innerHTML=weeks.map((wk,i)=>`<option value="${i}">${weekTitle(wk)} (${fmtDate(wk[0].date)}~${fmtDate(wk[wk.length-1].date)})</option>`).join('');
     j.value=String(weekIdx);
     j.onchange=()=>{weekIdx=+j.value;drawWeek();};})();
 
