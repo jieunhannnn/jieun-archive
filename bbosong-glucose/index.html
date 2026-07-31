@@ -497,7 +497,7 @@
       const day=data.find(d=>d.date===l.date);
       const prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
       let pinfo='';
-      if(prior){ const bg=bgAt(day,prior.h); pinfo=` · 직전주사 ${prior.t} ${prior.reg?'글라진':'레귤러'}${bg!=null?`(그때 ${bg})`:''}`; }
+      if(prior){ const bg=bgAt(day,prior.h); pinfo=` · 직전주사 ${prior.t} ${prior.reg?'글라진':'레귤러'}${bg!=null?`(${bg})`:''}`; }
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
        <span class="meta">${fmtT(l.t)}경${pinfo}</span></div>`;
