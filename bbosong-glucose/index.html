@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>뽀송이 혈당 대시보드</title>
 <style>
@@ -248,6 +248,10 @@
     s.setAttribute('viewBox',`0 0 ${w} ${h}`);s.setAttribute('width','100%');return s;}
   function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);
     for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+  // 네비 버튼: 터치를 직접 처리해 더블탭 줌 판정 차단
+  document.querySelectorAll('.nav button').forEach(b=>{
+    b.addEventListener('touchend',e=>{ e.preventDefault(); if(!b.disabled) b.click(); },{passive:false});
+  });
   // 차트 좌우 스와이프 → 이전/다음
   function addSwipe(id,onPrev,onNext){
     const elm=document.getElementById(id); if(!elm) return;
