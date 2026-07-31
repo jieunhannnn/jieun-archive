@@ -428,7 +428,7 @@
       eve:Math.round(segMean(days,18,21)),       // 18~21시
       preAM:Math.round(segMean(days,7.5,8.5)), prePM:Math.round(segMean(days,19.5,20.5)),  // 정규주사 직전
       shots:(shotsAll.length/days.length).toFixed(1),
-      stable:Math.round(mean(stab.map(s=>s.stable))),   // 1시간 ±40 안정 시간 비율 (높을수록 오래 완만)
+      stable:Math.round(mean(stab.map(s=>s.stable))),   // 30분 보폭 ±35 이내(완만)인 시간 비율
       longest:Math.round(mean(stab.map(s=>s.longest))), // 최장 안정 구간(분) — 기간이면 평균
     };
   }
