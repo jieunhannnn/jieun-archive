@@ -88,6 +88,7 @@
   .nav .lbl{position:relative; font-size:13.5px; font-weight:650; font-variant-numeric:tabular-nums; min-width:150px; text-align:center}
   .nav .lbl::after{content:'▾'; font-size:9px; color:var(--faint); margin-left:4px}
   .nav .jump{position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; border:0; padding:0; margin:0}
+  .nav .today{width:auto; padding:0 11px; font-size:11.5px; font-weight:600; color:var(--accent)}
   .interp{margin-top:12px; font-size:13px; line-height:1.8; color:var(--ink);
     background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
   .interp b{font-weight:700; font-variant-numeric:tabular-nums}
@@ -109,6 +110,7 @@
     <button id="day-prev">‹</button>
     <span class="lbl"><span id="day-label"></span><input type="date" class="jump" id="day-jump"></span>
     <button id="day-next">›</button>
+    <button class="today" id="day-today">오늘</button>
   </div>
   <div id="chart-oneday"></div>
   <div id="day-stat" class="interp"></div>
@@ -121,6 +123,7 @@
     <button id="week-prev">‹</button>
     <span class="lbl"><span id="week-label"></span><select class="jump" id="week-jump"></select></span>
     <button id="week-next">›</button>
+    <button class="today" id="week-today">오늘</button>
   </div>
   <div id="chart-week"></div>
   <p class="cap" style="margin:14px 0 0">이 주 레귤러(추가) 주사 횟수 · 아래 빨간 점 = 저혈당 난 날</p>
@@ -135,6 +138,7 @@
     <button id="month-prev">‹</button>
     <span class="lbl"><span id="month-label"></span><select class="jump" id="month-jump"></select></span>
     <button id="month-next">›</button>
+    <button class="today" id="month-today">이번 달</button>
   </div>
   <div id="chart-month"></div>
   <div id="month-stat" class="interp"></div>
@@ -301,6 +305,7 @@
     const _dj=document.getElementById('day-jump'); if(_dj) _dj.value=d.date;
     document.getElementById('day-prev').disabled=dayIdx===0;
     document.getElementById('day-next').disabled=dayIdx===data.length-1;
+    document.getElementById('day-today').disabled=dayIdx===data.length-1;
     const W=680,H=250,pL=34,pR=12,pT=12,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
     const yMin=40,yMax=Math.max(420,dayMax(d)+30);
     const x=h=>pL+h/24*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
@@ -329,6 +334,7 @@
   document.getElementById('day-prev').onclick=()=>goDay(-1);
   document.getElementById('day-next').onclick=()=>goDay(1);
   addSwipe('chart-oneday',()=>goDay(-1),()=>goDay(1));
+  document.getElementById('day-today').onclick=()=>{dayIdx=data.length-1;drawOneDay();};
   (function(){const j=document.getElementById('day-jump'); if(!j)return;
     j.min=data[0].date; j.max=data[data.length-1].date;
     j.onchange=()=>{const i=data.findIndex(d=>d.date===j.value); if(i>=0){dayIdx=i;drawOneDay();}};})();
@@ -343,6 +349,7 @@
     const _wj=document.getElementById('week-jump'); if(_wj) _wj.value=String(weekIdx);
     document.getElementById('week-prev').disabled=weekIdx===0;
     document.getElementById('week-next').disabled=weekIdx===weeks.length-1;
+    document.getElementById('week-today').disabled=weekIdx===weeks.length-1;
     const W=680,H=280,pL=34,pR=12,pT=12,pB=32, plotW=W-pL-pR,plotH=H-pT-pB;
     const yMin=40,yMax=Math.max(420,Math.max(...wk.map(dayMax))+20);
     const x=(di,h)=>pL+(di*24+h)/totH*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
@@ -375,6 +382,7 @@
   document.getElementById('week-prev').onclick=()=>goWeek(-1);
   document.getElementById('week-next').onclick=()=>goWeek(1);
   addSwipe('chart-week',()=>goWeek(-1),()=>goWeek(1));
+  document.getElementById('week-today').onclick=()=>{weekIdx=weeks.length-1;drawWeek();};
   (function(){const j=document.getElementById('week-jump'); if(!j)return;
     j.innerHTML=weeks.map((wk,i)=>`<option value="${i}">${fmtDate(wk[0].date)} ~ ${fmtDate(wk[wk.length-1].date)}</option>`).join('');
     j.value=String(weekIdx);
@@ -539,6 +547,7 @@
     const _mj=document.getElementById('month-jump'); if(_mj) _mj.value=mk;
     document.getElementById('month-prev').disabled=monthIdx===0;
     document.getElementById('month-next').disabled=monthIdx===monthKeys.length-1;
+    document.getElementById('month-today').disabled=monthIdx===monthKeys.length-1;
     const W=680,H=290,pL=34,pR=12,pT=14,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
     const yMin=30, yMax=Math.max(420,...ds.map(x=>x.max))+15;
     const xh=ah=>pL+ah/(dim*24)*plotW;             // 절대시간(월초부터 시간) → x
@@ -579,6 +588,7 @@
   document.getElementById('month-prev').onclick=()=>goMonth(-1);
   document.getElementById('month-next').onclick=()=>goMonth(1);
   addSwipe('chart-month',()=>goMonth(-1),()=>goMonth(1));
+  document.getElementById('month-today').onclick=()=>{monthIdx=monthKeys.length-1;drawMonth();};
   (function(){const j=document.getElementById('month-jump'); if(!j)return;
     j.innerHTML=monthKeys.map(m=>`<option value="${m}">${+m.slice(0,4)}년 ${+m.slice(5)}월</option>`).join('');
     j.value=monthKeys[monthIdx];
