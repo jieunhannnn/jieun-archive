@@ -340,7 +340,17 @@
     j.onchange=()=>{const i=data.findIndex(d=>d.date===j.value); if(i>=0){dayIdx=i;drawOneDay();}};})();
 
   // ============ CHART 4: 주간 연속 곡선 ============
-  const weeks=[]; for(let i=0;i<data.length;i+=7) weeks.push(data.slice(i,i+7));
+  // 주 나누기: 달력 기준 월요일~일요일 (양 끝은 부분 주)
+  const weeks=[]; {
+    const byWk={};
+    data.forEach(d=>{
+      const dt=new Date(d.date+'T00:00:00');
+      const mon=new Date(dt); mon.setDate(dt.getDate()-((dt.getDay()+6)%7)); // 그 주의 월요일
+      const k=mon.toISOString().slice(0,10);
+      (byWk[k]=byWk[k]||[]).push(d);
+    });
+    Object.keys(byWk).sort().forEach(k=>weeks.push(byWk[k]));
+  }
   let weekIdx=weeks.length-1;
   function drawWeek(){
     const host=document.getElementById('chart-week'); host.innerHTML='';
