@@ -142,6 +142,13 @@
   </div>
 </div>
 
+<div class="card">
+  <h2>월별 추이 (1월~)</h2>
+  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 파란 점선이 글라진 12 증량(7/11). 빨간 숫자는 진짜 저혈당 구간 수.</p>
+  <div id="chart-monthly"></div>
+  <div id="monthly-table"></div>
+  <div id="monthly-note" class="interp"></div>
+</div>
 
 <div class="card">
   <h2>패턴 요약</h2>
@@ -163,6 +170,7 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
+<script src="history.js"></script>
 <script src="data.js"></script>
 <script>
 (function(){
@@ -506,6 +514,67 @@
        <th>이번 주<span class="sub">${Wk.n}일</span></th></tr></thead><tbody>`+
     rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[3]}">${r[1]}</td><td class="${r[3]}">${r[2]}</td></tr>`).join('')+
     `</tbody></table>`;
+
+  // ============ 월별 추이 (history.js + 상세기간 요약 병합) ============
+  (function(){
+    const detailSum = data.map(d=>{
+      const v=dayVals(d), st=dayStability(d);
+      let lowsR=0, lowsC=0;
+      (d.lows||[]).forEach(l=>{ suspectCompression(d,l)?lowsC++:lowsR++; });
+      return {date:d.date, avg:Math.round(mean(v)), max:dayMax(d), min:dayMin(d),
+        tir:Math.round(100*v.filter(x=>x>=100&&x<=300).length/v.length), stable:st.stable, lowsR, lowsC};
+    });
+    const all=[...(window.GLUCOSE_HISTORY||[]), ...detailSum];
+    const byM={};
+    all.forEach(s=>{ const m=s.date.slice(0,7); (byM[m]=byM[m]||[]).push(s); });
+    const months=Object.keys(byM).sort();
+    const M=months.map(m=>{ const ds=byM[m]; return {m, n:ds.length,
+      avg:Math.round(mean(ds.map(x=>x.avg))),
+      max:Math.max(...ds.map(x=>x.max)), min:Math.min(...ds.map(x=>x.min)),
+      tir:Math.round(mean(ds.map(x=>x.tir))), stable:Math.round(mean(ds.map(x=>x.stable))),
+      lowsR:ds.reduce((a,x)=>a+(x.lowsR||0),0), lowsC:ds.reduce((a,x)=>a+(x.lowsC||0),0)}; });
+
+    // 차트
+    const host=document.getElementById('chart-monthly');
+    const n=M.length, W=680,H=270,pL=34,pR=12,pT=18,pB=30, plotW=W-pL-pR,plotH=H-pT-pB;
+    const yMin=30, yMax=Math.max(420,...M.map(x=>x.max))+15;
+    const x=i=>pL+(i+0.5)/n*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
+    const s=svg(W,H);
+    el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
+    const g=el('g',{class:'grid'},s);
+    [100,200,300,400].forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
+    // 글라진 12 증량(7/11) 세로 점선 — 7월 칸 왼쪽 경계
+    const j7=months.indexOf('2026-07');
+    if(j7>=0){ const xb=pL+j7/n*plotW;
+      el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:'var(--accent)','stroke-dasharray':'4 3','stroke-width':1.5,opacity:.7},s);
+      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:'var(--accent)'},s).textContent='글라진 12 (7/11)'; }
+    const ax=el('g',{class:'axis'},s);
+    M.forEach((mm,i)=>{
+      el('line',{x1:x(i),y1:y(mm.min),x2:x(i),y2:y(mm.max),stroke:'var(--faint)','stroke-width':4,opacity:.35,'stroke-linecap':'round'},s);
+      el('text',{x:x(i),y:H-8,'text-anchor':'middle'},ax).textContent=(+mm.m.slice(5))+'월';
+      if(mm.lowsR) el('text',{x:x(i),y:y(mm.min)+14,'text-anchor':'middle','font-size':'10',fill:'var(--low)','font-weight':'700'},s).textContent=mm.lowsR;
+    });
+    el('path',{class:'avgline','stroke-width':2,d:smoothPath(M.map((mm,i)=>[x(i),y(mm.avg)]))},s);
+    M.forEach((mm,i)=>{
+      el('circle',{cx:x(i),cy:y(mm.avg),r:3.5,fill:'var(--avg)',stroke:'#fff','stroke-width':1.5},s);
+      el('text',{x:x(i),y:y(mm.avg)-9,'text-anchor':'middle','font-size':'10','font-weight':'650',fill:'var(--ink)'},s).textContent=mm.avg;
+    });
+    host.appendChild(s);
+
+    // 표
+    document.getElementById('monthly-table').innerHTML=
+      '<table class="cmp"><thead><tr><th>월</th><th>평균</th><th>최고·최저</th><th>목표율</th><th>보폭</th><th>저혈당</th></tr></thead><tbody>'+
+      M.map(mm=>`<tr><td>${+mm.m.slice(5)}월<span class="sub">${mm.n}일</span></td><td>${mm.avg}</td><td>${mm.max}·${mm.min}</td><td>${mm.tir}%</td><td>${mm.stable}%</td><td>${mm.lowsR?`<span class="warn">${mm.lowsR}</span>`:'0'}${mm.lowsC?`<span class="sub">+의심${mm.lowsC}</span>`:''}</td></tr>`).join('')+
+      '</tbody></table>';
+
+    // 트렌드 한 줄
+    const f=M[0], l=M[M.length-1], dv=l.avg-f.avg;
+    const firstHalfLows=M.slice(0,Math.max(1,M.length-2)).reduce((a,x)=>a+x.lowsR,0);
+    document.getElementById('monthly-note').innerHTML=
+      `${+f.m.slice(5)}월 평균 <b>${f.avg}</b> → ${+l.m.slice(5)}월 <b>${l.avg}</b>${dv<0?` (<b>▼${-dv}</b> 내려왔어요)`:dv>0?` (▲${dv} 올랐어요)`:''}. `+
+      `진짜 저혈당은 이전 기간 <span class="low">${firstHalfLows}구간</span> → 최근 두 달 <span class="low">${M.slice(-2).reduce((a,x)=>a+x.lowsR,0)}구간</span>이에요.`;
+  })();
 
   // ---- lows list ----
   document.getElementById('lows-list').innerHTML = lowsAll.length ?
