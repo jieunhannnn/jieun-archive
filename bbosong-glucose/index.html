@@ -219,7 +219,7 @@
     {k:'기간', v:data.length, u:'일'},
     {k:'평균 혈당', v:Math.round(mean(allVals)), u:'mg/dL'},
     {k:'최고 · 최저', v:Math.max(...data.map(dayMax))+' · '+Math.min(...data.map(dayMin)), u:''},
-    {k:'1h 안정률', v:Math.round(mean(data.map(d=>dayStability(d).stable))), u:'%'},
+    {k:'보폭 안정률', v:Math.round(mean(data.map(d=>dayStability(d).stable))), u:'%'},
     {k:'저혈당', v:lowDays.size, u:'일', warn:true},
     {k:'목표(100–300)', v:Math.round(100*allVals.filter(x=>x>=100&&x<=300).length/allVals.length), u:'%'},
   ];
@@ -398,16 +398,17 @@
   document.getElementById('week-next').onclick=()=>{if(weekIdx<weeks.length-1){weekIdx++;drawWeek();}};
 
   // ---- 기간 지표 ----
-  // 하루 안정성(시간 기반): 혈당이 1시간 동안 ±40 안에 머문 시간 비율 + 최장 안정 구간(분)
+  // 하루 안정성(보폭 기반): 30분 보폭 |Δ|≤35인 시간 비율 + 최장 완만 구간(분)
+  // ±35 근거: 뽀송이 실측 보폭 분포의 75백분위(34) ≈ 리브레 수평 화살표 기준(분당 1). 완만한 추세 이동은 통과, 급변만 잡음.
   function dayStability(d){
-    const p=d.pts; let st=0,tot=0, best=0,cur=0;
+    const p=d.pts; let ok=0,tot=0, best=0,cur=0;
     for(let i=0;i<p.length;i++){
-      const w=p.filter(q=>q[0]>=p[i][0] && q[0]<p[i][0]+1);      // 1시간 창
-      if(w.length>=10){ tot++; if(Math.max(...w.map(q=>q[1]))-Math.min(...w.map(q=>q[1]))<=40) st++; }
-      const back=p.filter(q=>q[0]>p[i][0]-1 && q[0]<=p[i][0]);   // 뒤로 1시간 (최장 구간용)
-      if(Math.max(...back.map(q=>q[1]))-Math.min(...back.map(q=>q[1]))<=40){cur+=5; best=Math.max(best,cur);} else cur=0;
+      const q=p.find(x=>x[0]>=p[i][0]+0.45 && x[0]<=p[i][0]+0.55); // ~30분 뒤 지점
+      if(!q){ cur=0; continue; }
+      tot++;
+      if(Math.abs(q[1]-p[i][1])<=35){ ok++; cur+=5; best=Math.max(best,cur); } else cur=0;
     }
-    return { stable: tot?Math.round(100*st/tot):0, longest: best };  // stable%: 높을수록 오래 안정 / longest: 분
+    return { stable: tot?Math.round(100*ok/tot):0, longest: best };  // stable%: 완만한 시간 비율 / longest: 분
   }
   function fmtDur(min){ return min>=60 ? `${Math.floor(min/60)}시간${min%60?' '+min%60+'분':''}` : `${min}분`; }
   function periodStats(days){
@@ -470,13 +471,13 @@
       const rcs=days.map(regOf), tot=rcs.reduce((a,b)=>a+b,0), z=rcs.filter(r=>r===0).length;
       p.push(`레귤러(추가 주사)는 하루 평균 <b>${(tot/days.length).toFixed(1)}번</b> (안 맞은 날 ${z}일·가장 많은 날 ${Math.max(...rcs)}번)`);
     }
-    // 안정성 (1시간 ±40 유지율, 뽀송이 분포 기준 ≥30 잘 유지 / ≤15 자주 급변)
+    // 안정성 (30분 보폭 ±35 이내 = 완만. 뽀송이 분포 59~88% 기준: ≥85 완만 / ≤70 급변)
     if(mode==='day'){
-      if(s.stable>=30) p.push(`👍 혈당 보폭이 <b>완만하게 유지</b>됐어요 (하루의 ${s.stable}%가 1시간 안정, 최장 <b>${fmtDur(s.longest)}</b> 연속)${s.avg>300?' — 수치는 높아도 급변 없이 잔잔한 건 좋은 신호예요':''}`);
-      else if(s.stable<=15) p.push(`혈당이 <b>자주 급변했어요</b> (1시간 안정 ${s.stable}%뿐, 최장 ${fmtDur(s.longest)})`);
-      else p.push(`안정성은 보통이었어요 (1시간 안정 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
+      if(s.stable>=85) p.push(`👍 혈당 보폭이 <b>완만하게 유지</b>됐어요 (하루의 ${s.stable}%가 30분에 ±35 이내, 최장 <b>${fmtDur(s.longest)}</b> 연속)${s.avg>300?' — 수치는 높아도 천천히 움직인 건 좋은 신호예요':''}`);
+      else if(s.stable<=70) p.push(`혈당이 <b>급하게 움직인 시간이 많았어요</b> (완만한 시간 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
+      else p.push(`보폭은 보통이었어요 (완만한 시간 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
     } else {
-      p.push(`혈당 유지력은 하루의 <b>${s.stable}%</b>가 1시간 안정, 가장 오래 완만했던 구간은 평균 <b>${fmtDur(s.longest)}</b>였어요`);
+      p.push(`혈당 보폭은 하루의 <b>${s.stable}%</b>가 완만(30분 ±35 이내)했고, 가장 길게 완만했던 구간은 평균 <b>${fmtDur(s.longest)}</b>였어요`);
     }
     if(s.prePM>=315) p.push(`저녁 주사 직전이 <b>${s.prePM}</b>으로 높아서 저녁 관리가 포인트예요`);
     return p.join('. ')+'.';
@@ -490,8 +491,8 @@
     ['300 초과 비율', A.over300+'%', Wk.over300+'%', ''],
     ['최고 / 최저', A.max+'·'+A.min, Wk.max+'·'+Wk.min, ''],
     ['일 변동폭 <span class="sub">최고−최저</span>', A.range, Wk.range, ''],
-    ['1시간 안정률 <span class="sub">±40 유지</span>', A.stable+'%', Wk.stable+'%', ''],
-    ['최장 안정 구간', fmtDur(A.longest), fmtDur(Wk.longest), ''],
+    ['보폭 안정률 <span class="sub">30분 ±35 이내</span>', A.stable+'%', Wk.stable+'%', ''],
+    ['최장 완만 구간', fmtDur(A.longest), fmtDur(Wk.longest), ''],
     ['저혈당', A.lowDays+'일', Wk.lowDays+'일', 'warn'],
     ['아침 <span class="sub">6–10시</span>', A.morning, Wk.morning, ''],
     ['낮 <span class="sub">12–15시</span>', A.noon, Wk.noon, ''],
