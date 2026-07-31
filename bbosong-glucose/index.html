@@ -45,7 +45,6 @@
   svg{display:block; width:100%; height:auto; overflow:visible}
   .grid line{stroke:var(--line); stroke-width:1}
   .grid text,.axis text{fill:var(--faint); font-size:10px; font-variant-numeric:tabular-nums}
-  .dayline{fill:none; stroke:var(--faint); stroke-width:1; opacity:.16}
   .avgline{fill:none; stroke:var(--avg); stroke-width:2.5; stroke-linjoin:round; stroke-linecap:round}
   .lowdot{fill:var(--low); stroke:#fff; stroke-width:1.5}
   .lowdot.comp{fill:#fff; stroke:var(--low); stroke-dasharray:2 1.5}
@@ -128,18 +127,14 @@
 </div>
 
 <div class="card">
-  <h2>하루 리듬 (시간대별)</h2>
-  <p class="cap">전체 날짜를 겹쳐 본 시간대별 혈당. 굵은 선이 평균이에요.</p>
-  <div id="chart-rhythm"></div>
-  <div class="legend">
-    <span><i class="sw" style="background:var(--avg)"></i>평균</span>
-    <span><i class="sw" style="background:var(--faint);opacity:.4"></i>개별 날</span>
-    <span><i class="sw dot" style="background:var(--low)"></i>저혈당</span>
-    <span><i class="sw dot" style="background:#fff;border:1.5px dashed var(--low)"></i>압박 의심</span>
-    <span><i class="sw" style="background:var(--target);opacity:.5"></i>목표범위</span>
-    <span><i class="sw" style="background:var(--accent);width:3px;height:11px"></i>정규 주사</span>
-    <span><i class="sw" style="background:var(--high);width:3px;height:11px"></i>추가 주사</span>
+  <h2>월간 그래프</h2>
+  <p class="cap">한 달의 일별 흐름 — 선은 일 평균, 회색 음영은 그날 최저~최고 폭. 빨간 점은 진짜 저혈당 난 날(빈 점=압박 의심).</p>
+  <div class="nav">
+    <button id="month-prev">‹</button>
+    <span class="lbl" id="month-label"></span>
+    <button id="month-next">›</button>
   </div>
+  <div id="chart-month"></div>
 </div>
 
 <div class="card">
@@ -246,54 +241,6 @@
     s.setAttribute('viewBox',`0 0 ${w} ${h}`);s.setAttribute('width','100%');return s;}
   function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);
     for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
-
-  // ============ CHART 1: rhythm ============
-  (function(){
-    const W=680,H=300, pL=34,pR=12,pT=12,pB=26;
-    const plotW=W-pL-pR, plotH=H-pT-pB;
-    const yMin=40,yMax=420;
-    const x=h=>pL + h/24*plotW;
-    const y=v=>pT + (1-(v-yMin)/(yMax-yMin))*plotH;
-    const s=svg(W,H);
-
-    // target band 70-180
-    el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
-
-    // grid
-    const g=el('g',{class:'grid'},s);
-    [100,150,200,250,300,350,400].forEach(v=>{
-      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
-      if(v%100===0) el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;
-    });
-    const ax=el('g',{class:'axis'},s);
-    [0,3,6,9,12,15,18,21,24].forEach(h=>{
-      el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
-      el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
-
-    // individual days
-    data.forEach(d=>{
-      el('path',{class:'dayline',d:smoothPath(d.pts.map(p=>[x(p[0]),y(p[1])]))},s);
-    });
-    // average curve — 5분 슬롯마다 모든 날 평균
-    const avg=[];
-    for(let m=0;m<1440;m+=5){ const h=m/60;
-      const vs=flat(data.map(d=>d.pts.filter(p=>Math.abs(p[0]-h)<0.042).map(p=>p[1])));
-      if(vs.length) avg.push([x(h),y(mean(vs))]);
-    }
-    el('path',{class:'avgline',d:smoothPath(avg)},s);
-
-    // low dots
-    lowsAll.forEach(l=>el('circle',{class:'lowdot'+(l.comp?' comp':''),cx:x(l.t),cy:y(l.val),r:4},s));
-
-    // injection rug — 하단(42~60 구간)에 주사 시각을 세로선으로. 겹칠수록 진해짐
-    const rugBot=y(43), rugTop=y(60);
-    data.forEach(d=>dayShots(d).forEach(sh=>{
-      el('line',{x1:x(sh.h),y1:rugBot,x2:x(sh.h),y2:rugTop,
-        stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.4,opacity:.38},s);
-    }));
-
-    document.getElementById('chart-rhythm').appendChild(s);
-  })();
 
   // ============ 주간 레귤러(추가) 주사 막대 (주간 그래프 하단) ============
   function drawWeekRegular(wk){
@@ -517,19 +464,72 @@
     rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[3]}">${r[1]}</td><td class="${r[3]}">${r[2]}</td></tr>`).join('')+
     `</tbody></table>`;
 
-  // ============ 월별 추이 (history.js + 상세기간 요약 병합) ============
-  (function(){
-    const detailSum = data.map(d=>{
-      const v=dayVals(d), st=dayStability(d);
-      let lowsR=0, lowsC=0;
-      (d.lows||[]).forEach(l=>{ suspectCompression(d,l)?lowsC++:lowsR++; });
-      return {date:d.date, avg:Math.round(mean(v)), max:dayMax(d), min:dayMin(d),
-        tir:Math.round(100*v.filter(x=>x>=100&&x<=300).length/v.length), stable:st.stable, lowsR, lowsC};
+  // ---- 일별 요약 통합 (히스토리 + 상세) — 월간 그래프·월별 추이 공용 ----
+  const detailSum = data.map(d=>{
+    const v=dayVals(d), st=dayStability(d);
+    let lowsR=0, lowsC=0;
+    (d.lows||[]).forEach(l=>{ suspectCompression(d,l)?lowsC++:lowsR++; });
+    // 30분 간격 곡선 (월간 그래프용, 히스토리 hp와 동일 형식)
+    const hp=d.pts.filter(p=>Math.abs((p[0]*60)%30)<3).map(p=>[p[0],p[1]]);
+    return {date:d.date, avg:Math.round(mean(v)), max:dayMax(d), min:dayMin(d),
+      tir:Math.round(100*v.filter(x=>x>=100&&x<=300).length/v.length), stable:st.stable, lowsR, lowsC, hp,
+      lowPts:(d.lows||[]).map(l=>({t:l.t,val:l.val,comp:suspectCompression(d,l)}))};
+  });
+  const sumByMonth={};
+  [...(window.GLUCOSE_HISTORY||[]), ...detailSum].forEach(s=>{ const m=s.date.slice(0,7); (sumByMonth[m]=sumByMonth[m]||[]).push(s); });
+  Object.values(sumByMonth).forEach(a=>a.sort((x,y)=>x.date.localeCompare(y.date)));
+  const monthKeys=Object.keys(sumByMonth).sort();
+
+  // ============ 월간 그래프 (한 달 연속 곡선, 30분 간격) ============
+  let monthIdx=monthKeys.length-1;
+  function drawMonth(){
+    const host=document.getElementById('chart-month'); host.innerHTML='';
+    const mk=monthKeys[monthIdx], ds=sumByMonth[mk];
+    const dim=new Date(+mk.slice(0,4), +mk.slice(5,7), 0).getDate();
+    document.getElementById('month-label').textContent=`2026년 ${+mk.slice(5)}월`;
+    document.getElementById('month-prev').disabled=monthIdx===0;
+    document.getElementById('month-next').disabled=monthIdx===monthKeys.length-1;
+    const W=680,H=290,pL=34,pR=12,pT=14,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
+    const yMin=30, yMax=Math.max(420,...ds.map(x=>x.max))+15;
+    const xh=ah=>pL+ah/(dim*24)*plotW;             // 절대시간(월초부터 시간) → x
+    const y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
+    const s=svg(W,H);
+    el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
+    const g=el('g',{class:'grid'},s);
+    [100,200,300,400].forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+      el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
+    const ax=el('g',{class:'axis'},s);
+    [1,5,10,15,20,25,dim].forEach(dd=>el('text',{x:xh((dd-0.5)*24),y:H-8,'text-anchor':'middle'},ax).textContent=dd);
+    // 연속 곡선 — 2시간 넘는 공백에서 세그먼트 분리
+    const seq=[];
+    ds.forEach(d=>{ const day=+d.date.slice(8);
+      (d.hp||[]).forEach(p=>seq.push([(day-1)*24+p[0], p[1]])); });
+    seq.sort((a,b)=>a[0]-b[0]);
+    let seg=[];
+    for(let i=0;i<seq.length;i++){
+      if(seg.length && seq[i][0]-seq[i-1][0]>2){
+        if(seg.length>1) el('path',{class:'avgline','stroke-width':1.6,d:smoothPath(seg)},s);
+        seg=[]; }
+      seg.push([xh(seq[i][0]), y(seq[i][1])]);
+    }
+    if(seg.length>1) el('path',{class:'avgline','stroke-width':1.6,d:smoothPath(seg)},s);
+    // 저혈당 표시 (상세기간=정확 시각, 히스토리=그날 최저 시각 근사)
+    ds.forEach(d=>{ const day=+d.date.slice(8);
+      if(d.lowPts){ d.lowPts.forEach(l=>el('circle',{class:'lowdot'+(l.comp?' comp':''),cx:xh((day-1)*24+l.t),cy:y(l.val),r:3.5},s)); }
+      else if(d.lowsR||d.lowsC){
+        const mn=(d.hp||[]).reduce((a,p)=>p[1]<a[1]?p:a,[12,9999]);
+        el('circle',{class:'lowdot'+(!d.lowsR&&d.lowsC?' comp':''),cx:xh((day-1)*24+mn[0]),cy:y(Math.min(mn[1],d.min)),r:3.5},s);
+      }
     });
-    const all=[...(window.GLUCOSE_HISTORY||[]), ...detailSum];
-    const byM={};
-    all.forEach(s=>{ const m=s.date.slice(0,7); (byM[m]=byM[m]||[]).push(s); });
-    const months=Object.keys(byM).sort();
+    host.appendChild(s);
+  }
+  drawMonth();
+  document.getElementById('month-prev').onclick=()=>{if(monthIdx>0){monthIdx--;drawMonth();}};
+  document.getElementById('month-next').onclick=()=>{if(monthIdx<monthKeys.length-1){monthIdx++;drawMonth();}};
+
+  // ============ 월별 추이 (요약) ============
+  (function(){
+    const byM=sumByMonth, months=monthKeys;
     const M=months.map(m=>{ const ds=byM[m]; return {m, n:ds.length,
       avg:Math.round(mean(ds.map(x=>x.avg))),
       max:Math.max(...ds.map(x=>x.max)), min:Math.min(...ds.map(x=>x.min)),
@@ -547,10 +547,14 @@
     [100,200,300,400].forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
     // 글라진 12 증량(7/11) 세로 점선 — 7월 칸 왼쪽 경계
-    const j7=months.indexOf('2026-07');
-    if(j7>=0){ const xb=pL+j7/n*plotW;
-      el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:'var(--accent)','stroke-dasharray':'4 3','stroke-width':1.5,opacity:.7},s);
-      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:'var(--accent)'},s).textContent='글라진 12 (7/9)'; }
+    // 이벤트 마커: 레귤러 시작(4/5), 글라진 12 증량(7/9)
+    [['2026-04',4/30,'var(--high)','레귤러 시작 (4/5)'],
+     ['2026-07',8/31,'var(--accent)','글라진 12 (7/9)']].forEach(([mk,frac,color,label])=>{
+      const j=months.indexOf(mk); if(j<0) return;
+      const xb=pL+(j+frac)/n*plotW;
+      el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:color,'stroke-dasharray':'4 3','stroke-width':1.5,opacity:.7},s);
+      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:color},s).textContent=label;
+    });
     const ax=el('g',{class:'axis'},s);
     M.forEach((mm,i)=>{
       el('line',{x1:x(i),y1:y(mm.min),x2:x(i),y2:y(mm.max),stroke:'var(--faint)','stroke-width':4,opacity:.35,'stroke-linecap':'round'},s);

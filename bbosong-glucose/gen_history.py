@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """전체 리브레 CSV에서 상세기간(7/11) 이전의 '일별 요약'을 뽑아 history.js를 만든다.
 사용법: python3 gen_history.py <CSV경로>
-필드: date, avg, max, min, tir(100~300 비율%), stable(30분 보폭 ±35 완만%), lowsR(진짜 저혈당 구간수), lowsC(압박 의심 구간수)
+필드: date, avg, max, min, tir(100~300 비율%), stable(30분 보폭 ±35 완만%), lowsR/lowsC(진짜/압박의심 저혈당), hp(30분 간격 곡선)
 """
 import csv, json, sys, os
 from datetime import datetime
@@ -68,7 +68,8 @@ def main():
                 else: lowsR += 1
                 i = j
             else: i += 1
-        rec = {'date': d, 'avg': avg, 'max': max(vals), 'min': min(vals), 'tir': tir, 'stable': stable}
+        hp = [[round(t,2), v] for t, v in pts if abs((t*60) % 30) < 3]  # 30분 간격 곡선 (월간 그래프용)
+        rec = {'date': d, 'avg': avg, 'max': max(vals), 'min': min(vals), 'tir': tir, 'stable': stable, 'hp': hp}
         if lowsR: rec['lowsR'] = lowsR
         if lowsC: rec['lowsC'] = lowsC
         out.append(rec)
