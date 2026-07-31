@@ -144,7 +144,7 @@
 
 <div class="card">
   <h2>월별 추이 (1월~)</h2>
-  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 파란 점선이 글라진 12 증량(7/11). 빨간 숫자는 진짜 저혈당 구간 수.</p>
+  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 파란 점선이 글라진 12 증량(7/9). 빨간 숫자는 진짜 저혈당 구간 수.</p>
   <div id="chart-monthly"></div>
   <div id="monthly-table"></div>
   <div id="monthly-note" class="interp"></div>
@@ -548,7 +548,7 @@
     const j7=months.indexOf('2026-07');
     if(j7>=0){ const xb=pL+j7/n*plotW;
       el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:'var(--accent)','stroke-dasharray':'4 3','stroke-width':1.5,opacity:.7},s);
-      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:'var(--accent)'},s).textContent='글라진 12 (7/11)'; }
+      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:'var(--accent)'},s).textContent='글라진 12 (7/9)'; }
     const ax=el('g',{class:'axis'},s);
     M.forEach((mm,i)=>{
       el('line',{x1:x(i),y1:y(mm.min),x2:x(i),y2:y(mm.max),stroke:'var(--faint)','stroke-width':4,opacity:.35,'stroke-linecap':'round'},s);
