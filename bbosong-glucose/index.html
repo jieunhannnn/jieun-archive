@@ -585,7 +585,18 @@
       inj += (inj?', ':'')+`레귤러는 하루 평균 <b>${avgReg}</b>번`;
     }
     if(inj) p.push(inj+'였어요');
-    return p.join('. ')+'.';
+    let out=p.join('. ')+'.';
+    // 한 줄 포인트 (그 달 데이터에서 자동 진단)
+    const prevAvg = j>0 ? Math.round(mean(sumByMonth[monthKeys[j-1]].map(x=>x.avg))) : null;
+    const hi=tod.length>=2?tod.reduce((a,b)=>b.a>a.a?b:a):null;
+    let point='';
+    if(lr>=3) point=`이 달은 진짜 저혈당이 ${lr}구간으로 많았어요 — 용량을 조금 줄여볼 시점이에요.`;
+    else if(tir>=70 && stb>=70) point='높지도 들쑥날쑥하지도 않은, 가장 안정적인 달이에요. 이 흐름 유지가 목표예요.';
+    else if(tir<=25) point='혈당이 목표보다 높게 머문 달이에요 — 전반적으로 더 내려야 해요.';
+    else if(prevAvg!=null && avg-prevAvg<=-15) point='전월보다 뚜렷이 내려온 달이에요. 변화(용량·주사)가 잘 먹혔어요.';
+    else if(hi) point=`관리 포인트는 ${hi.nm}(${hi.lo}~${hi.hi}시)예요 — 이 시간대가 하루 중 가장 높아요.`;
+    if(point) out+=` <b style="color:var(--accent)">💡 ${point}</b>`;
+    return out;
   }
   let monthIdx=monthKeys.length-1;
   function drawMonth(){
