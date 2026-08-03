@@ -556,10 +556,35 @@
     else head+='이었어요';
     p.push(head);
     p.push(`최고 <b>${mx}</b>·최저 <b>${mn}</b>, 목표(100–300) 안엔 <b>${tir}%</b>, 보폭은 ${stb}%가 완만했어요`);
+    // 시간대별 흐름 (모든 날의 30분 곡선 hp 집계)
+    const tod=[[0,6,'새벽'],[6,12,'오전'],[12,18,'오후'],[18,24,'저녁']].map(([lo,hi,nm])=>{
+      const vs=flat(ds.map(d=>(d.hp||[]).filter(pt=>pt[0]>=lo&&pt[0]<hi).map(pt=>pt[1])));
+      return {nm,lo,hi,a:vs.length?Math.round(mean(vs)):null};
+    }).filter(t=>t.a!=null);
+    if(tod.length>=2){
+      const hi=tod.reduce((a,b)=>b.a>a.a?b:a), lo=tod.reduce((a,b)=>b.a<a.a?b:a);
+      p.push(`하루 중 평균이 가장 높은 때는 ${hi.nm}(${hi.lo}~${hi.hi}시, <b>${hi.a}</b>), 가장 낮은 때는 ${lo.nm}(${lo.lo}~${lo.hi}시, <b>${lo.a}</b>)였어요`);
+    }
+    // 최장 완만 구간 (hp 30분 간격, 연속 |Δ|≤35)
+    let calm=[];
+    ds.forEach(d=>{ const h=(d.hp||[]).slice().sort((a,b)=>a[0]-b[0]);
+      let run=0; for(let i=1;i<h.length;i++){
+        if(Math.abs(h[i][0]-h[i-1][0]-0.5)<0.08 && Math.abs(h[i][1]-h[i-1][1])<=35) run+=30; else { if(run)calm.push(run); run=0; }
+      } if(run)calm.push(run);
+    });
+    if(calm.length) p.push(`가장 길게 완만했던 구간은 평균 ${fmtDur(Math.round(mean(calm)))}였어요`);
     if(lr) p.push(`<span class="low">진짜 저혈당 ${lr}구간 ⚠️</span>${lc?` (🛏️ 압박 의심 ${lc}구간 별도)`:''}`);
     else if(lc) p.push(`저혈당 기록 ${lc}구간은 모두 🛏️ 센서 압박 의심이에요`);
     else p.push('저혈당은 없었어요');
-    if(DOSE[mk]) p.push(`글라진은 <b>${DOSE[mk].l}u</b>였어요`);
+    // 주사: 글라진 용량 + (상세월) 레귤러 하루 평균
+    let inj = DOSE[mk] ? `글라진은 <b>${DOSE[mk].l}u</b>` : '';
+    const detDays=data.filter(d=>d.date.slice(0,7)===mk);
+    if(detDays.length){
+      const regs=detDays.map(d=>dayShots(d).filter(sh=>!sh.reg).length);
+      const avgReg=Math.round(mean(regs)*10)/10;
+      inj += (inj?', ':'')+`레귤러는 하루 평균 <b>${avgReg}</b>번`;
+    }
+    if(inj) p.push(inj+'였어요');
     return p.join('. ')+'.';
   }
   let monthIdx=monthKeys.length-1;
