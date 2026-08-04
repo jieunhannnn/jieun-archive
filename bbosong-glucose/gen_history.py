@@ -55,7 +55,7 @@ def main():
         stable = round(100*ok/tot) if tot else 0
         # 저혈당 구간 + 압박 의심 (원시값 기준, 회복측 15분 내 +100 반등)
         raw = sorted({**H, **R}.items())
-        lowsR = lowsC = 0
+        lowsR = lowsC = 0; lows = []
         i = 0
         while i < len(raw):
             if raw[i][1] < 70:
@@ -66,12 +66,14 @@ def main():
                 rebound = any(m2 > lo[0] and m2 <= lo[0]+15 and v2 >= lo[1]+100 for m2, v2 in raw)
                 if rebound: lowsC += 1
                 else: lowsR += 1
+                lows.append({'t': round(lo[0]/60, 3), 'val': lo[1], 'comp': bool(rebound)})
                 i = j
             else: i += 1
         hp = [[round(t,2), v] for t, v in pts if abs((t*60) % 30) < 3]  # 30분 간격 곡선 (월간 그래프용)
         rec = {'date': d, 'avg': avg, 'max': max(vals), 'min': min(vals), 'tir': tir, 'stable': stable, 'hp': hp}
         if lowsR: rec['lowsR'] = lowsR
         if lowsC: rec['lowsC'] = lowsC
+        if lows: rec['lows'] = lows
         out.append(rec)
 
     hdr = ("/* 뽀송이 과거 일별 요약 (상세기간 이전: ~%s 전날) — gen_history.py로 생성\n"
