@@ -179,8 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805002208"></script>
-<script src="data.js?v=20260805002208"></script>
+<script src="history.js?v=20260805002954"></script>
+<script src="shots_history.js"></script>
+<script src="data.js?v=20260805002954"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -611,9 +612,12 @@
     else p.push('저혈당은 없었어요');
     // 주사: 글라진 용량 + (상세월) 레귤러 하루 평균
     let inj = DOSE[mk] ? `글라진은 <b>${DOSE[mk].l}u</b>` : '';
-    const detDays=data.filter(d=>d.date.slice(0,7)===mk);
-    if(detDays.length){
-      const regs=detDays.map(d=>dayShots(d).filter(sh=>!sh.reg).length);
+    const detDays=data.filter(d=>d.date.slice(0,7)===mk && (d.shots||[]).length);
+    let regs=null;
+    if(detDays.length) regs=detDays.map(d=>dayShots(d).filter(sh=>!sh.reg).length);
+    else { const hs=(window.SHOTS_HISTORY||[]).filter(x=>x.date.slice(0,7)===mk);
+           if(hs.length) regs=hs.map(x=>x.r); }
+    if(regs){
       const avgReg=Math.round(mean(regs)*10)/10;
       inj += (inj?', ':'')+`레귤러는 하루 평균 <b>${avgReg}</b>번`;
     }
@@ -634,14 +638,19 @@
   // 월간 일별 주사 횟수 (글라진+레귤러 누적 막대)
   function drawMonthShots(mk, dim){
     const host=document.getElementById('month-shots'); host.innerHTML='';
+    const byDay={};
     const days=data.filter(d=>d.date.slice(0,7)===mk && (d.shots||[]).length);
-    if(!days.length){
-      host.innerHTML='<p class="note" style="margin:6px 0 0">이 달은 주사 기록이 없어요 (상세 기록은 7/9부터예요).</p>';
+    if(days.length){   // 상세 기간(7/9~): 리브레 기록일지 기반
+      days.forEach(d=>{ const sh=dayShots(d);
+        byDay[+d.date.slice(8)]={g:sh.filter(x=>x.reg).length, r:sh.filter(x=>!x.reg).length}; });
+    } else {           // 그 이전: 구글시트 인슐린 기록 기반
+      (window.SHOTS_HISTORY||[]).filter(x=>x.date.slice(0,7)===mk)
+        .forEach(x=>{ byDay[+x.date.slice(8)]={g:x.g, r:x.r}; });
+    }
+    if(!Object.keys(byDay).length){
+      host.innerHTML='<p class="note" style="margin:6px 0 0">이 달은 주사 기록이 없어요.</p>';
       return;
     }
-    const byDay={};
-    days.forEach(d=>{ const sh=dayShots(d);
-      byDay[+d.date.slice(8)]={g:sh.filter(x=>x.reg).length, r:sh.filter(x=>!x.reg).length}; });
     const W=680,H=110, pL=34,pR=12,pT=14,pB=22, plotW=W-pL-pR, plotH=H-pT-pB;
     const maxC=Math.max(4,...Object.values(byDay).map(v=>v.g+v.r));
     const x=d=>pL+((d-0.5)/dim)*plotW, bw=Math.min(16,plotW/dim*0.6);
