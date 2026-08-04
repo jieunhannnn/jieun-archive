@@ -8,7 +8,7 @@ from datetime import datetime
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DETAIL_START = '2026-07-09'   # 이 날짜부터는 data.js(상세)가 담당
+DETAIL_START = '2026-07-01'   # 이 날짜부터는 data.js(상세)가 담당
 
 def main():
     if len(sys.argv) < 2:
