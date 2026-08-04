@@ -320,10 +320,21 @@
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
       el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
-    const cpts=d.pts.map(p=>[x(p[0]),y(p[1])]);
+    // 20분 넘게 값이 비면(센서 교체 등) 선을 끊어 그린다 — 없는 구간을 이어 그리지 않기 위해
+    const src=d.pts.slice();
     const next=data[dayIdx+1];
-    if(next && next.pts.length) cpts.push([x(24),y(next.pts[0][1])]); // 다음 날 첫값으로 연결
-    el('path',{class:'avgline',d:smoothPath(cpts)},s);
+    if(next && next.pts.length && 24-src[src.length-1][0]<=0.34) src.push([24,next.pts[0][1]]); // 다음 날 첫값으로 연결
+    let seg=[];
+    for(let i=0;i<src.length;i++){
+      if(seg.length && src[i][0]-src[i-1][0]>0.34){
+        if(seg.length>1) el('path',{class:'avgline',d:smoothPath(seg)},s);
+        else el('circle',{cx:seg[0][0],cy:seg[0][1],r:2,fill:'var(--avg)'},s);
+        seg=[];
+      }
+      seg.push([x(src[i][0]),y(src[i][1])]);
+    }
+    if(seg.length>1) el('path',{class:'avgline',d:smoothPath(seg)},s);
+    else if(seg.length) el('circle',{cx:seg[0][0],cy:seg[0][1],r:2,fill:'var(--avg)'},s);
     (d.lows||[]).forEach(l=>{
       const comp=suspectCompression(d,l);
       el('circle',{class:'lowdot'+(comp?' comp':''),cx:x(l.t),cy:y(l.val),r:4},s);
@@ -387,8 +398,17 @@
       el('text',{x:x(di,12),y:H-8,'text-anchor':'middle'},ax).textContent=`${+d.date.split('-')[2]}(${weekday(d.date)})`;
     });
     // 연속 곡선 (각 날 5분 실측을 이어 붙임)
-    const pts=[]; wk.forEach((d,di)=>d.pts.forEach(p=>pts.push([x(di,p[0]),y(p[1])])));
-    el('path',{class:'avgline','stroke-width':2,d:smoothPath(pts)},s);
+    // 20분 넘는 공백에서 선 분리 (절대시각 기준)
+    const seq=[]; wk.forEach((d,di)=>d.pts.forEach(p=>seq.push([di*24+p[0], x(di,p[0]), y(p[1])])));
+    let wseg=[];
+    for(let i=0;i<seq.length;i++){
+      if(wseg.length && seq[i][0]-seq[i-1][0]>0.34){
+        if(wseg.length>1) el('path',{class:'avgline','stroke-width':2,d:smoothPath(wseg)},s);
+        wseg=[];
+      }
+      wseg.push([seq[i][1],seq[i][2]]);
+    }
+    if(wseg.length>1) el('path',{class:'avgline','stroke-width':2,d:smoothPath(wseg)},s);
     // 저혈당 + 주사
     wk.forEach((d,di)=>{
       (d.lows||[]).forEach(l=>el('circle',{class:'lowdot'+(suspectCompression(d,l)?' comp':''),cx:x(di,l.t),cy:y(l.val),r:3.5},s));
