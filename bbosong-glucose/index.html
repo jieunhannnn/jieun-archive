@@ -144,7 +144,7 @@
     <button class="today" id="month-today">최근</button>
   </div>
   <div id="chart-month"></div>
-  <p class="cap" style="margin:14px 0 0">이 달 일별 주사 횟수 · <span style="color:var(--accent)">■</span> 글라진 <span style="color:var(--high)">■</span> 레귤러(추가)</p>
+  <p class="cap" style="margin:14px 0 0">이 달 일별 레귤러(추가) 주사 횟수 · 글라진은 매일 2회로 일정해요</p>
   <div id="month-shots"></div>
   <div id="month-stat" class="interp"></div>
 </div>
@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805002954"></script>
+<script src="history.js?v=20260805003242"></script>
 <script src="shots_history.js"></script>
-<script src="data.js?v=20260805002954"></script>
+<script src="data.js?v=20260805003242"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -652,7 +652,7 @@
       return;
     }
     const W=680,H=110, pL=34,pR=12,pT=14,pB=22, plotW=W-pL-pR, plotH=H-pT-pB;
-    const maxC=Math.max(4,...Object.values(byDay).map(v=>v.g+v.r));
+    const maxC=Math.max(4,...Object.values(byDay).map(v=>v.r));
     const x=d=>pL+((d-0.5)/dim)*plotW, bw=Math.min(16,plotW/dim*0.6);
     const y=c=>pT+(1-c/maxC)*plotH;
     const s=svg(W,H);
@@ -660,10 +660,11 @@
     for(let c=0;c<=maxC;c+=(maxC>6?2:1)){ el('line',{x1:pL,y1:y(c),x2:W-pR,y2:y(c),opacity:c===0?1:.4},g);
       el('text',{x:pL-5,y:y(c)+3,'text-anchor':'end'},g).textContent=c; }
     Object.entries(byDay).forEach(([d,v])=>{
-      const dd=+d, tot=v.g+v.r;
-      if(v.g) el('rect',{x:x(dd)-bw/2,y:y(v.g),width:bw,height:y(0)-y(v.g),fill:'var(--accent)',rx:2},s);
-      if(v.r) el('rect',{x:x(dd)-bw/2,y:y(tot),width:bw,height:y(v.g)-y(tot),fill:'var(--high)',rx:2},s);
-      if(tot) el('text',{x:x(dd),y:y(tot)-4,'text-anchor':'middle','font-size':'9',fill:'var(--muted)'},s).textContent=tot;
+      const dd=+d;
+      if(v.r){
+        el('rect',{x:x(dd)-bw/2,y:y(v.r),width:bw,height:y(0)-y(v.r),fill:'var(--high)',rx:2},s);
+        el('text',{x:x(dd),y:y(v.r)-4,'text-anchor':'middle','font-size':'9',fill:'var(--muted)'},s).textContent=v.r;
+      }
     });
     const ax=el('g',{class:'axis'},s);
     [1,5,10,15,20,25,dim].forEach(dd=>el('text',{x:x(dd),y:H-5,'text-anchor':'middle'},ax).textContent=dd);
