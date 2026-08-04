@@ -144,6 +144,8 @@
     <button class="today" id="month-today">최근</button>
   </div>
   <div id="chart-month"></div>
+  <p class="cap" style="margin:14px 0 0">이 달 일별 주사 횟수 · <span style="color:var(--accent)">■</span> 글라진 <span style="color:var(--high)">■</span> 레귤러(추가)</p>
+  <div id="month-shots"></div>
   <div id="month-stat" class="interp"></div>
 </div>
 
@@ -177,8 +179,8 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805001913"></script>
-<script src="data.js?v=20260805001913"></script>
+<script src="history.js?v=20260805002208"></script>
+<script src="data.js?v=20260805002208"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -629,6 +631,35 @@
     if(point) out+=` <b style="color:var(--accent)">💡 ${point}</b>`;
     return out;
   }
+  // 월간 일별 주사 횟수 (글라진+레귤러 누적 막대)
+  function drawMonthShots(mk, dim){
+    const host=document.getElementById('month-shots'); host.innerHTML='';
+    const days=data.filter(d=>d.date.slice(0,7)===mk && (d.shots||[]).length);
+    if(!days.length){
+      host.innerHTML='<p class="note" style="margin:6px 0 0">이 달은 주사 기록이 없어요 (상세 기록은 7/9부터예요).</p>';
+      return;
+    }
+    const byDay={};
+    days.forEach(d=>{ const sh=dayShots(d);
+      byDay[+d.date.slice(8)]={g:sh.filter(x=>x.reg).length, r:sh.filter(x=>!x.reg).length}; });
+    const W=680,H=110, pL=34,pR=12,pT=14,pB=22, plotW=W-pL-pR, plotH=H-pT-pB;
+    const maxC=Math.max(4,...Object.values(byDay).map(v=>v.g+v.r));
+    const x=d=>pL+((d-0.5)/dim)*plotW, bw=Math.min(16,plotW/dim*0.6);
+    const y=c=>pT+(1-c/maxC)*plotH;
+    const s=svg(W,H);
+    const g=el('g',{class:'grid'},s);
+    for(let c=0;c<=maxC;c+=(maxC>6?2:1)){ el('line',{x1:pL,y1:y(c),x2:W-pR,y2:y(c),opacity:c===0?1:.4},g);
+      el('text',{x:pL-5,y:y(c)+3,'text-anchor':'end'},g).textContent=c; }
+    Object.entries(byDay).forEach(([d,v])=>{
+      const dd=+d, tot=v.g+v.r;
+      if(v.g) el('rect',{x:x(dd)-bw/2,y:y(v.g),width:bw,height:y(0)-y(v.g),fill:'var(--accent)',rx:2},s);
+      if(v.r) el('rect',{x:x(dd)-bw/2,y:y(tot),width:bw,height:y(v.g)-y(tot),fill:'var(--high)',rx:2},s);
+      if(tot) el('text',{x:x(dd),y:y(tot)-4,'text-anchor':'middle','font-size':'9',fill:'var(--muted)'},s).textContent=tot;
+    });
+    const ax=el('g',{class:'axis'},s);
+    [1,5,10,15,20,25,dim].forEach(dd=>el('text',{x:x(dd),y:H-5,'text-anchor':'middle'},ax).textContent=dd);
+    host.appendChild(s);
+  }
   let monthIdx=monthKeys.length-1;
   function drawMonth(){
     const host=document.getElementById('chart-month'); host.innerHTML='';
@@ -672,6 +703,7 @@
       }
     });
     host.appendChild(s);
+    drawMonthShots(mk, dim);
     document.getElementById('month-stat').innerHTML=monthInterp(mk,ds);
   }
   drawMonth();
