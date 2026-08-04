@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """리브레 CSV에서 대시보드에 없는 새 날짜만 골라 data.js에 추가한다.
-사용법:  python3 add_glucose.py <CSV경로> [--from 2026-07-09]
+사용법:  python3 add_glucose.py <CSV경로> [--from 2026-07-09] [--redo 2026-08-04]
  - 기록유형 1(1분 실시간, 컬럼5) 우선, 없으면 유형 0(15분 과거, 컬럼4)
  - 5분 간격 리샘플 / 저혈당(70미만)·max·min 자동 / shots는 빈 배열(인슐린은 따로 입력)
  - 커버리지 2시간 이상이면 수록(센서 교체일 등 공백 큰 날도 빈 채로 들어감)
@@ -75,6 +75,17 @@ def main():
     if '--from' in sys.argv: start = sys.argv[sys.argv.index('--from')+1]
 
     hdr, arr = load_existing()
+    # --redo YYYY-MM-DD : 이미 있는 날을 새 CSV로 다시 만든다 (주사 기록은 보존)
+    redo = []
+    while '--redo' in sys.argv:
+        i = sys.argv.index('--redo'); redo.append(sys.argv[i+1]); del sys.argv[i:i+2]
+    kept_shots = {}
+    if redo:
+        for d in arr:
+            if d['date'] in redo: kept_shots[d['date']] = d.get('shots', [])
+        arr = [d for d in arr if d['date'] not in redo]
+        if redo and min(redo) < start: start = min(redo)
+
     have = {d['date'] for d in arr}
     RT, HIST = parse_csv(csv_path, start)
 
@@ -82,7 +93,9 @@ def main():
     for d in sorted(set(RT) | set(HIST)):
         if d in have: continue
         obj = build_day(d, RT[d], HIST[d])
-        if obj: arr.append(obj); added.append(obj)
+        if obj:
+            if d in kept_shots: obj['shots'] = kept_shots[d]
+            arr.append(obj); added.append(obj)
 
     if not added:
         print("새로 추가할 날짜 없음 (모두 이미 있음)."); return
