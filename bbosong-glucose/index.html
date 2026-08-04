@@ -177,8 +177,8 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260804165258"></script>
-<script src="data.js?v=20260804165258"></script>
+<script src="history.js?v=20260804165550"></script>
+<script src="data.js?v=20260804165550"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -461,9 +461,11 @@
       max:Math.max(...days.map(dayMax)), min:Math.min(...days.map(dayMin)),
       range:Math.round(mean(days.map(d=>dayMax(d)-dayMin(d)))),
       lowDays:days.filter(d=>d.lows&&d.lows.length).length,
-      morning:(v=>v==null?null:Math.round(v))(segMean(days,6,10)),    // 6~10시
-      noon:(v=>v==null?null:Math.round(v))(segMean(days,12,15)),      // 12~15시
-      eve:(v=>v==null?null:Math.round(v))(segMean(days,18,21)),       // 18~21시
+      // 시간대 4구간 6시간씩 (전 카드 공통 기준)
+      dawn:(v=>v==null?null:Math.round(v))(segMean(days,0,6)),        // 새벽 0~6시
+      morning:(v=>v==null?null:Math.round(v))(segMean(days,6,12)),    // 오전 6~12시
+      noon:(v=>v==null?null:Math.round(v))(segMean(days,12,18)),      // 오후 12~18시
+      eve:(v=>v==null?null:Math.round(v))(segMean(days,18,24)),       // 저녁 18~24시
       preAM:(v=>v==null?null:Math.round(v))(segMean(days,7.5,8.5)), prePM:(v=>v==null?null:Math.round(v))(segMean(days,19.5,20.5)),  // 정규주사 직전
       shots:(shotsAll.length/days.length).toFixed(1),
       stable:Math.round(mean(stab.map(s=>s.stable))),   // 30분 보폭 ±35 이내(완만)인 시간 비율
@@ -472,7 +474,7 @@
   }
   // 그날/그주 지표를 자연어 해석 문장으로
   function segHiLo(s){
-    const seg=[['아침',s.morning],['낮',s.noon],['저녁',s.eve]].filter(x=>x[1]!=null);
+    const seg=[['새벽',s.dawn],['오전',s.morning],['오후',s.noon],['저녁',s.eve]].filter(x=>x[1]!=null);
     if(seg.length<2) return {hi:null, lo:null};   // 데이터 없는 시간대는 제외 (센서 교체일 등)
     return {hi:seg.reduce((a,b)=>b[1]>a[1]?b:a), lo:seg.reduce((a,b)=>b[1]<a[1]?b:a)};
   }
@@ -533,9 +535,10 @@
     ['보폭 안정률 <span class="sub">30분 ±35 이내</span>', A.stable+'%', Wk.stable+'%', ''],
     ['최장 완만 구간', fmtDur(A.longest), fmtDur(Wk.longest), ''],
     ['저혈당', A.lowDays+'일', Wk.lowDays+'일', 'warn'],
-    ['아침 <span class="sub">6–10시</span>', A.morning, Wk.morning, ''],
-    ['낮 <span class="sub">12–15시</span>', A.noon, Wk.noon, ''],
-    ['저녁 <span class="sub">18–21시</span>', A.eve, Wk.eve, ''],
+    ['새벽 <span class="sub">0–6시</span>', A.dawn??'–', Wk.dawn??'–', ''],
+    ['오전 <span class="sub">6–12시</span>', A.morning??'–', Wk.morning??'–', ''],
+    ['오후 <span class="sub">12–18시</span>', A.noon??'–', Wk.noon??'–', ''],
+    ['저녁 <span class="sub">18–24시</span>', A.eve??'–', Wk.eve??'–', ''],
     ['주사 전 <span class="sub">아침·저녁</span>', (A.preAM??'–')+'·'+(A.prePM??'–'), (Wk.preAM??'–')+'·'+(Wk.prePM??'–'), ''],
     ['하루 주사', A.shots+'회', Wk.shots+'회', ''],
   ];
