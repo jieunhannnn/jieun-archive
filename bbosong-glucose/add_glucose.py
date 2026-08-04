@@ -3,6 +3,7 @@
 사용법:  python3 add_glucose.py <CSV경로> [--from 2026-07-09]
  - 기록유형 1(1분 실시간, 컬럼5) 우선, 없으면 유형 0(15분 과거, 컬럼4)
  - 5분 간격 리샘플 / 저혈당(70미만)·max·min 자동 / shots는 빈 배열(인슐린은 따로 입력)
+ - 커버리지 2시간 이상이면 수록(센서 교체일 등 공백 큰 날도 빈 채로 들어감)
  - 이미 있는 날짜는 건너뜀. 새 날짜만 추가하고 날짜순 정렬해서 data.js를 다시 쓴다.
 """
 import csv, json, sys, re, os
@@ -47,7 +48,7 @@ def build_day(d, R, H):
                 if m+dm in H and (best is None or abs(dm) < abs(best[0])): best = (dm, H[m+dm])
             if best: v = best[1]
         if v is not None: pts.append([round(m/60, 3), v])
-    if len(pts) < 200:  # 하루가 거의 다 차야 완결된 날로 인정 (부분 날 제외)
+    if len(pts) < 24:  # 최소 2시간(24칸)만 있으면 넣는다. 센서 교체일 등 공백 큰 날도 그대로 수록
         return None
     raw = sorted({**H, **R}.items())
     vals = [v for _, v in raw]
