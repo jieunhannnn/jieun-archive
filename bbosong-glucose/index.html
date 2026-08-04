@@ -193,7 +193,7 @@
   const dayMax = d => d.max != null ? d.max : Math.max(...dayVals(d));
   const dayMin = d => d.min != null ? d.min : Math.min(...dayVals(d));
   // 시각 [a,b) 구간 평균 (여러 날)
-  const segMean = (days,a,b)=>{ const vs=flat(days.map(d=>d.pts.filter(p=>p[0]>=a&&p[0]<b).map(p=>p[1]))); return vs.length?mean(vs):0; };
+  const segMean = (days,a,b)=>{ const vs=flat(days.map(d=>d.pts.filter(p=>p[0]>=a&&p[0]<b).map(p=>p[1]))); return vs.length?mean(vs):null; };
   // 점들을 부드러운 곡선(Catmull-Rom→베지어) path로 — 리브레처럼 매끄럽게
   const smoothPath = pts => {
     if(!pts.length) return '';
@@ -438,10 +438,10 @@
       max:Math.max(...days.map(dayMax)), min:Math.min(...days.map(dayMin)),
       range:Math.round(mean(days.map(d=>dayMax(d)-dayMin(d)))),
       lowDays:days.filter(d=>d.lows&&d.lows.length).length,
-      morning:Math.round(segMean(days,6,10)),    // 6~10시
-      noon:Math.round(segMean(days,12,15)),      // 12~15시
-      eve:Math.round(segMean(days,18,21)),       // 18~21시
-      preAM:Math.round(segMean(days,7.5,8.5)), prePM:Math.round(segMean(days,19.5,20.5)),  // 정규주사 직전
+      morning:(v=>v==null?null:Math.round(v))(segMean(days,6,10)),    // 6~10시
+      noon:(v=>v==null?null:Math.round(v))(segMean(days,12,15)),      // 12~15시
+      eve:(v=>v==null?null:Math.round(v))(segMean(days,18,21)),       // 18~21시
+      preAM:(v=>v==null?null:Math.round(v))(segMean(days,7.5,8.5)), prePM:(v=>v==null?null:Math.round(v))(segMean(days,19.5,20.5)),  // 정규주사 직전
       shots:(shotsAll.length/days.length).toFixed(1),
       stable:Math.round(mean(stab.map(s=>s.stable))),   // 30분 보폭 ±35 이내(완만)인 시간 비율
       longest:Math.round(mean(stab.map(s=>s.longest))), // 최장 안정 구간(분) — 기간이면 평균
@@ -449,7 +449,8 @@
   }
   // 그날/그주 지표를 자연어 해석 문장으로
   function segHiLo(s){
-    const seg=[['아침',s.morning],['낮',s.noon],['저녁',s.eve]];
+    const seg=[['아침',s.morning],['낮',s.noon],['저녁',s.eve]].filter(x=>x[1]!=null);
+    if(seg.length<2) return {hi:null, lo:null};   // 데이터 없는 시간대는 제외 (센서 교체일 등)
     return {hi:seg.reduce((a,b)=>b[1]>a[1]?b:a), lo:seg.reduce((a,b)=>b[1]<a[1]?b:a)};
   }
   function interp(days,mode){
@@ -459,12 +460,12 @@
       const cmp=Math.abs(dv)<8?`전체(${all.avg})와 비슷했어요`:(dv>0?`전체(${all.avg})보다 조금 높았어요`:`전체(${all.avg})보다 조금 낮았어요`);
       p.push(`이번 주는 평균 <b>${s.avg}</b>로 ${cmp}`);
       p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요`);
-      p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높은 흐름이에요`);
+      if(hi&&lo&&hi[0]!==lo[0]) p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높은 흐름이에요`);
     } else {
       const lvl=s.target>=85?'대체로 잘 잡혔어요':s.target>=65?'그런대로 관리됐어요':'높은 편이었어요';
       p.push(`평균 <b>${s.avg}</b>, 목표(100–300) 안에 <b>${s.target}%</b> 있어서 ${lvl}`);
       p.push(`이 날 최고 <b>${s.max}</b>·최저 <b>${s.min}</b>까지 갔어요`);
-      p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높았어요`);
+      if(hi&&lo&&hi[0]!==lo[0]) p.push(`시간대로 보면 ${lo[0]} 평균(${lo[1]})이 낮고 <b>${hi[0]} 평균(${hi[1]})</b>이 높았어요`);
     }
     if(s.lowDays>0){
       if(mode==='day'){
@@ -512,7 +513,7 @@
     ['아침 <span class="sub">6–10시</span>', A.morning, Wk.morning, ''],
     ['낮 <span class="sub">12–15시</span>', A.noon, Wk.noon, ''],
     ['저녁 <span class="sub">18–21시</span>', A.eve, Wk.eve, ''],
-    ['주사 전 <span class="sub">아침·저녁</span>', A.preAM+'·'+A.prePM, Wk.preAM+'·'+Wk.prePM, ''],
+    ['주사 전 <span class="sub">아침·저녁</span>', (A.preAM??'–')+'·'+(A.prePM??'–'), (Wk.preAM??'–')+'·'+(Wk.prePM??'–'), ''],
     ['하루 주사', A.shots+'회', Wk.shots+'회', ''],
   ];
   document.getElementById('pattern-compare').innerHTML=
