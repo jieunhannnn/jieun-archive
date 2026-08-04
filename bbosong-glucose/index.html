@@ -177,8 +177,8 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260804170032"></script>
-<script src="data.js?v=20260804170032"></script>
+<script src="history.js?v=20260804173655"></script>
+<script src="data.js?v=20260804173655"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -538,9 +538,9 @@
     ['최장 완만 구간', fmtDur(A.longest), fmtDur(Wk.longest), ''],
     ['저혈당', A.lowDays+'일', Wk.lowDays+'일', 'warn'],
     ['오전 <span class="sub">0–12시</span>', A.am??'–', Wk.am??'–', ''],
-    ['오후 <span class="sub">12–24시</span>', A.pm??'–', Wk.pm??'–', ''],
     ['└ 새벽 <span class="sub">0–6시</span>', A.dawn??'–', Wk.dawn??'–', ''],
     ['└ 아침 <span class="sub">6–12시</span>', A.morning??'–', Wk.morning??'–', ''],
+    ['오후 <span class="sub">12–24시</span>', A.pm??'–', Wk.pm??'–', ''],
     ['└ 낮 <span class="sub">12–18시</span>', A.noon??'–', Wk.noon??'–', ''],
     ['└ 저녁 <span class="sub">18–24시</span>', A.eve??'–', Wk.eve??'–', ''],
     ['주사 전 <span class="sub">아침·저녁</span>', (A.preAM??'–')+'·'+(A.prePM??'–'), (Wk.preAM??'–')+'·'+(Wk.prePM??'–'), ''],
