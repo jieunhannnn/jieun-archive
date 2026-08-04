@@ -151,7 +151,7 @@
 
 <div class="card">
   <h2>월별 추이 (1월~)</h2>
-  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 파란 점선이 글라진 12 증량(7/9). 빨간 숫자는 진짜 저혈당 구간 수.</p>
+  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 점선은 주요 사건(레귤러 시작·글라진 증량). 빨간 숫자는 진짜 저혈당 구간 수.</p>
   <div id="chart-monthly"></div>
   <p class="cap" style="margin:12px 0 0">글라진 1회 용량 추이 (u) · 1~3월은 기록 메모 평균</p>
   <div id="chart-dose"></div>
@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805004841"></script>
-<script src="shots_history.js?v=20260805004841"></script>
-<script src="data.js?v=20260805004841"></script>
+<script src="history.js?v=20260805005255"></script>
+<script src="shots_history.js?v=20260805005255"></script>
+<script src="data.js?v=20260805005255"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -572,6 +572,11 @@
   Object.values(sumByMonth).forEach(a=>a.sort((x,y)=>x.date.localeCompare(y.date)));
   const monthKeys=Object.keys(sumByMonth).sort();
 
+  // 주요 사건 (월간·월별추이 공통)
+  const EVENTS=[
+    {date:'2026-04-05', label:'레귤러 시작', color:'var(--high)'},
+    {date:'2026-07-09', label:'글라진 12 증량', color:'var(--accent)'},
+  ];
   // 글라진 월 대표 용량 (1~3월=건강기록 메모 평균, 4~6월=인슐린 시트, 7월=10→12 (7/9 증량))
   const DOSE={'2026-01':{v:5.2,l:'5.2'},'2026-02':{v:7.6,l:'7.6'},'2026-03':{v:8.8,l:'8.8'},
               '2026-04':{v:10,l:'10'},'2026-05':{v:10,l:'10'},'2026-06':{v:10,l:'10'},'2026-07':{v:11.5,l:'10→12'}};
@@ -712,6 +717,12 @@
         el('circle',{class:'lowdot'+(!d.lowsR&&d.lowsC?' comp':''),cx:xh((day-1)*24+mn[0]),cy:y(Math.min(mn[1],d.min)),r:3.5},s);
       }
     });
+    // 이벤트 세로선 — 그 달에 해당 사건이 있으면 표시
+    EVENTS.filter(e=>e.date.slice(0,7)===mk).forEach(e=>{
+      const xb=xh((+e.date.slice(8)-1)*24);
+      el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:e.color,'stroke-dasharray':'4 3','stroke-width':1.5,opacity:.75},s);
+      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:e.color},s).textContent=e.label;
+    });
     host.appendChild(s);
     drawMonthShots(mk, dim);
     document.getElementById('month-stat').innerHTML=monthInterp(mk,ds);
@@ -747,13 +758,13 @@
     [100,200,300,400].forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
     // 글라진 12 증량(7/11) 세로 점선 — 7월 칸 왼쪽 경계
-    // 이벤트 마커: 레귤러 시작(4/5), 글라진 12 증량(7/9)
-    [['2026-04',4/30,'var(--high)','레귤러 시작 (4/5)'],
-     ['2026-07',8/31,'var(--accent)','글라진 12 (7/9)']].forEach(([mk,frac,color,label])=>{
-      const j=months.indexOf(mk); if(j<0) return;
-      const xb=pL+(j+frac)/n*plotW;
-      el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:color,'stroke-dasharray':'4 3','stroke-width':1.5,opacity:.7},s);
-      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:color},s).textContent=label;
+    // 이벤트 마커 (EVENTS 공용 정의)
+    EVENTS.forEach(e=>{
+      const mk=e.date.slice(0,7), j=months.indexOf(mk); if(j<0) return;
+      const dim=new Date(+mk.slice(0,4), +mk.slice(5,7), 0).getDate();
+      const xb=pL+(j+(+e.date.slice(8)-1)/dim)/n*plotW;
+      el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:e.color,'stroke-dasharray':'4 3','stroke-width':1.5,opacity:.7},s);
+      el('text',{x:xb+4,y:pT+10,'font-size':'9',fill:e.color},s).textContent=`${e.label} (${+e.date.slice(5,7)}/${+e.date.slice(8)})`;
     });
     const ax=el('g',{class:'axis'},s);
     M.forEach((mm,i)=>{
