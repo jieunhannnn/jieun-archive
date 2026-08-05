@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805111320"></script>
-<script src="shots_history.js?v=20260805111320"></script>
-<script src="data.js?v=20260805111320"></script>
+<script src="history.js?v=20260805111410"></script>
+<script src="shots_history.js?v=20260805111410"></script>
+<script src="data.js?v=20260805111410"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -490,7 +490,7 @@
     const tail = hiVal<=300 ? `가장 높은 <b>${H} ${hiVal}</b>도 목표 안이라 괜찮았어요`
                : hiVal<=350 ? `가장 높은 <b>${H} ${hiVal}</b>은 목표를 조금 넘었어요`
                             : `가장 높은 <b>${H} ${hiVal}</b>이 높은 편이었어요`;
-    return `시간대로는 ${L} ${loVal}이 가장 낮고, ${tail}`;
+    return `시간대별 평균은 ${L} <b>${loVal}</b>이 가장 낮고, ${tail}`;
   }
   function interp(days,mode){
     const s=periodStats(days), {hi,lo}=segHiLo(s), p=[];
