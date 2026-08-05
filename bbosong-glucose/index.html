@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805111302"></script>
-<script src="shots_history.js?v=20260805111302"></script>
-<script src="data.js?v=20260805111302"></script>
+<script src="history.js?v=20260805111320"></script>
+<script src="shots_history.js?v=20260805111320"></script>
+<script src="data.js?v=20260805111320"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -485,8 +485,8 @@
   }
   // 시간대 최고/최저 문장 — 최고값이 목표 안이면 '괜찮았다'로 읽히게
   function todSentence(loName, loVal, hiName, hiVal, loRange, hiRange){
-    const L = loRange ? `${loName} ${loRange}` : loName;
-    const H = hiRange ? `${hiName} ${hiRange}` : hiName;
+    const L = loRange ? `${loName}${loRange}` : loName;
+    const H = hiRange ? `${hiName}${hiRange}` : hiName;
     const tail = hiVal<=300 ? `가장 높은 <b>${H} ${hiVal}</b>도 목표 안이라 괜찮았어요`
                : hiVal<=350 ? `가장 높은 <b>${H} ${hiVal}</b>은 목표를 조금 넘었어요`
                             : `가장 높은 <b>${H} ${hiVal}</b>이 높은 편이었어요`;
