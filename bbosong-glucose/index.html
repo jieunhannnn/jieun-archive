@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805231358"></script>
-<script src="shots_history.js?v=20260805231358"></script>
-<script src="data.js?v=20260805231358"></script>
+<script src="history.js?v=20260805231653"></script>
+<script src="shots_history.js?v=20260805231653"></script>
+<script src="data.js?v=20260805231653"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -828,9 +828,18 @@
   document.getElementById('lows-list').innerHTML = lowsAll.length ?
     lowsAll.sort((a,b)=>a.date.localeCompare(b.date)).map(l=>{
       const day=data.find(d=>d.date===l.date);
-      const prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop();
+      // 직전 주사 — 그날에 없으면(새벽 저혈당 등) 전날 마지막 주사까지 거슬러 찾는다
+      let prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop(), priorDay=day, prevTag='';
+      if(!prior){
+        const pi=data.findIndex(d=>d.date===l.date)-1;
+        if(pi>=0){ const pd=data[pi];
+          const ps=dayShots(pd).sort((a,b)=>a.h-b.h).pop();
+          if(ps){ prior=ps; priorDay=pd; prevTag='전날 '; } }
+      }
       let pinfo='';
-      if(prior){ const bg=bgAt(day,prior.h); pinfo=` · 직전주사 ${prior.t} ${prior.reg?'글라진':'레귤러'}${bg!=null?`(${bg})`:''}`; }
+      if(prior){ const bg=bgAt(priorDay,prior.h);
+        const gap=Math.round(((l.t + (prevTag?24:0)) - prior.h)*60);
+        pinfo=` · 직전주사 ${prevTag}${prior.t} ${prior.reg?'글라진':'레귤러'}${bg!=null?`(${bg})`:''} · ${fmtDur(gap)} 뒤`; }
       const comp=suspectCompression(day,l)?' · 🛏️ 센서 압박 의심':'';
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
