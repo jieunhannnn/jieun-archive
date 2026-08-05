@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805111502"></script>
-<script src="shots_history.js?v=20260805111502"></script>
-<script src="data.js?v=20260805111502"></script>
+<script src="history.js?v=20260805111738"></script>
+<script src="shots_history.js?v=20260805111738"></script>
+<script src="data.js?v=20260805111738"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -483,21 +483,27 @@
     if(seg.length<2) return {hi:null, lo:null};   // 데이터 없는 시간대는 제외 (센서 교체일 등)
     return {hi:seg.reduce((a,b)=>b[1]>a[1]?b:a), lo:seg.reduce((a,b)=>b[1]<a[1]?b:a)};
   }
+  // 숫자 뒤 조사 자동 선택 (한글 읽기 기준: 1·7·8=ㄹ받침→'로', 3·6·0=받침→'으로')
+  // ※ 함수 선언식으로 둘 것 — 렌더가 위쪽에서 먼저 실행되므로 const면 TDZ 에러
+  function _lastDigit(n){ return Math.abs(Math.round(+n)) % 10; }
+  function jRo(n){ return [0,3,6].includes(_lastDigit(n)) ? '으로' : '로'; }   // 로/으로
+  function jI(n){ return [2,4,5,9].includes(_lastDigit(n)) ? '가' : '이'; }    // 이/가
+  function jEun(n){ return [2,4,5,9].includes(_lastDigit(n)) ? '는' : '은'; }  // 은/는
   // 시간대 최고/최저 문장 — 최고값이 목표 안이면 '괜찮았다'로 읽히게
   function todSentence(loName, loVal, hiName, hiVal, loRange, hiRange){
     const L = loRange ? `${loName}${loRange}` : loName;
     const H = hiRange ? `${hiName}${hiRange}` : hiName;
     const tail = hiVal<=300 ? `가장 높은 <b>${H} ${hiVal}</b>도 목표 안이라 괜찮았어요`
-               : hiVal<=350 ? `가장 높은 <b>${H} ${hiVal}</b>은 목표를 조금 넘었어요`
-                            : `가장 높은 <b>${H} ${hiVal}</b>이 높은 편이었어요`;
-    return `시간대별 평균은 ${L} <b>${loVal}</b>으로 가장 낮고, ${tail}`;
+               : hiVal<=350 ? `가장 높은 <b>${H} ${hiVal}</b>${jEun(hiVal)} 목표를 조금 넘었어요`
+                            : `가장 높은 <b>${H} ${hiVal}</b>${jI(hiVal)} 높은 편이었어요`;
+    return `시간대별 평균은 ${L} <b>${loVal}</b>${jRo(loVal)} 가장 낮고, ${tail}`;
   }
   function interp(days,mode){
     const s=periodStats(days), {hi,lo}=segHiLo(s), p=[];
     if(mode==='week'){
       const all=periodStats(data), dv=s.avg-all.avg;
       const cmp=Math.abs(dv)<8?`전체(${all.avg})와 비슷했어요`:(dv>0?`전체(${all.avg})보다 조금 높았어요`:`전체(${all.avg})보다 조금 낮았어요`);
-      p.push(`이번 주는 평균 <b>${s.avg}</b>로 ${cmp}`);
+      p.push(`이번 주는 평균 <b>${s.avg}</b>${jRo(s.avg)} ${cmp}`);
       p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요`);
       if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     } else {
@@ -532,7 +538,7 @@
       else if(s.stable<=70) p.push(`혈당이 <b>급하게 움직인 시간이 많았어요</b> (완만한 시간 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
       else p.push(`보폭은 보통이었어요 (완만한 시간 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
     } else {
-      p.push(`혈당 보폭은 하루의 <b>${s.stable}%</b>가 완만(30분 ±35 이내)했고, 가장 길게 완만했던 구간은 평균 <b>${fmtDur(s.longest)}</b>였어요`);
+      p.push(`혈당 보폭은 하루의 <b>${s.stable}%</b>가 완만(30분 ±35 이내)했고, 가장 길게 완만했던 구간은 평균 <b>${fmtDur(s.longest)}</b>이었어요`);
     }
     if(s.prePM>=315) p.push(`저녁 주사 직전이 <b>${s.prePM}</b>으로 높아서 저녁 관리가 포인트예요`);
     return p.join('. ')+'.';
@@ -599,8 +605,9 @@
     const lr=ds.reduce((a,x)=>a+(x.lowsR||0),0), lc=ds.reduce((a,x)=>a+(x.lowsC||0),0);
     const j=monthKeys.indexOf(mk), p=[];
     let head=`${+mk.slice(5)}월은 평균 <b>${avg}</b>`;
+    const R=jRo(avg);
     if(j>0){ const pv=Math.round(mean(sumByMonth[monthKeys[j-1]].map(x=>x.avg))), dv=avg-pv;
-      head+= dv<=-8?`로 전월(${pv})보다 <b>▼${-dv}</b> 내려왔어요`: dv>=8?`로 전월(${pv})보다 ▲${dv} 올랐어요`:`로 전월(${pv})과 비슷했어요`; }
+      head+= dv<=-8?`${R} 전월(${pv})보다 <b>▼${-dv}</b> 내려왔어요`: dv>=8?`${R} 전월(${pv})보다 ▲${dv} 올랐어요`:`${R} 전월(${pv})과 비슷했어요`; }
     else head+='이었어요';
     p.push(head);
     p.push(`최고 <b>${mx}</b>·최저 <b>${mn}</b>, 목표(100–300) 안엔 <b>${tir}%</b>, 보폭은 ${stb}%가 완만했어요`);
@@ -620,7 +627,7 @@
         if(Math.abs(h[i][0]-h[i-1][0]-0.5)<0.08 && Math.abs(h[i][1]-h[i-1][1])<=35) run+=30; else { if(run)calm.push(run); run=0; }
       } if(run)calm.push(run);
     });
-    if(calm.length) p.push(`가장 길게 완만했던 구간은 평균 ${fmtDur(Math.round(mean(calm)))}였어요`);
+    if(calm.length) p.push(`가장 길게 완만했던 구간은 평균 ${fmtDur(Math.round(mean(calm)))}이었어요`);
     if(lr) p.push(`<span class="low">진짜 저혈당 ${lr}구간 ⚠️</span>${lc?` (🛏️ 압박 의심 ${lc}구간 별도)`:''}`);
     else if(lc) p.push(`저혈당 기록 ${lc}구간은 모두 🛏️ 센서 압박 의심이에요`);
     else p.push('저혈당은 없었어요');
@@ -635,7 +642,7 @@
       const avgReg=Math.round(mean(regs)*10)/10;
       inj += (inj?', ':'')+`레귤러는 하루 평균 <b>${avgReg}</b>번`;
     }
-    if(inj) p.push(inj+'였어요');
+    if(inj) p.push(inj + (/번$/.test(inj) ? '이었어요' : '였어요'));   // …번 → 이었어요 / …u → 였어요
     let out=p.join('. ')+'.';
     // 한 줄 포인트 (그 달 데이터에서 자동 진단)
     const prevAvg = j>0 ? Math.round(mean(sumByMonth[monthKeys[j-1]].map(x=>x.avg))) : null;
