@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805111110"></script>
-<script src="shots_history.js?v=20260805111110"></script>
-<script src="data.js?v=20260805111110"></script>
+<script src="history.js?v=20260805111227"></script>
+<script src="shots_history.js?v=20260805111227"></script>
+<script src="data.js?v=20260805111227"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -483,6 +483,13 @@
     if(seg.length<2) return {hi:null, lo:null};   // 데이터 없는 시간대는 제외 (센서 교체일 등)
     return {hi:seg.reduce((a,b)=>b[1]>a[1]?b:a), lo:seg.reduce((a,b)=>b[1]<a[1]?b:a)};
   }
+  // 시간대 최고/최저 문장 — 최고값이 목표 안이면 '괜찮았다'로 읽히게
+  function todSentence(loName, loVal, hiName, hiVal){
+    const tail = hiVal<=300 ? `가장 높은 <b>${hiName}(${hiVal})</b>도 목표 안이라 괜찮았어요`
+               : hiVal<=350 ? `가장 높은 <b>${hiName}(${hiVal})</b>은 목표를 조금 넘었어요`
+                            : `가장 높은 <b>${hiName}(${hiVal})</b>이 높은 편이었어요`;
+    return `시간대로는 ${loName}(${loVal})이 가장 낮고, ${tail}`;
+  }
   function interp(days,mode){
     const s=periodStats(days), {hi,lo}=segHiLo(s), p=[];
     if(mode==='week'){
@@ -490,12 +497,12 @@
       const cmp=Math.abs(dv)<8?`전체(${all.avg})와 비슷했어요`:(dv>0?`전체(${all.avg})보다 조금 높았어요`:`전체(${all.avg})보다 조금 낮았어요`);
       p.push(`이번 주는 평균 <b>${s.avg}</b>로 ${cmp}`);
       p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요`);
-      if(hi&&lo&&hi[0]!==lo[0]) p.push(`시간대로는 ${lo[0]}(${lo[1]})이 가장 낮고 <b>${hi[0]}(${hi[1]})</b>이 가장 높았어요${hi[1]<=300?' — 둘 다 목표 안이에요':''}`);
+      if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     } else {
       const lvl=s.target>=85?'대체로 잘 잡혔어요':s.target>=65?'그런대로 관리됐어요':'높은 편이었어요';
       p.push(`평균 <b>${s.avg}</b>, 목표(100–300) 안에 <b>${s.target}%</b> 있어서 ${lvl}`);
       p.push(`이 날 최고 <b>${s.max}</b>·최저 <b>${s.min}</b>까지 갔어요`);
-      if(hi&&lo&&hi[0]!==lo[0]) p.push(`시간대로는 ${lo[0]}(${lo[1]})이 가장 낮고 <b>${hi[0]}(${hi[1]})</b>이 가장 높았어요${hi[1]<=300?' — 둘 다 목표 안이에요':''}`);
+      if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     }
     if(s.lowDays>0){
       if(mode==='day'){
@@ -602,7 +609,7 @@
     }).filter(t=>t.a!=null);
     if(tod.length>=2){
       const hi=tod.reduce((a,b)=>b.a>a.a?b:a), lo=tod.reduce((a,b)=>b.a<a.a?b:a);
-      p.push(`하루 중 평균이 가장 높은 때는 ${hi.nm}(${hi.lo}~${hi.hi}시, <b>${hi.a}</b>), 가장 낮은 때는 ${lo.nm}(${lo.lo}~${lo.hi}시, <b>${lo.a}</b>)였어요${hi.a<=300?' — 둘 다 목표 안이에요':''}`);
+      p.push(todSentence(`${lo.nm}(${lo.lo}~${lo.hi}시)`, lo.a, `${hi.nm}(${hi.lo}~${hi.hi}시)`, hi.a));
     }
     // 최장 완만 구간 (hp 30분 간격, 연속 |Δ|≤35)
     let calm=[];
