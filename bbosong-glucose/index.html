@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805140138"></script>
-<script src="shots_history.js?v=20260805140138"></script>
-<script src="data.js?v=20260805140138"></script>
+<script src="history.js?v=20260805231208"></script>
+<script src="shots_history.js?v=20260805231208"></script>
+<script src="data.js?v=20260805231208"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -591,6 +591,7 @@
   const EVENTS=[
     {date:'2026-04-05', label:'레귤러 시작', color:'var(--high)'},
     {date:'2026-07-09', label:'글라진 12 증량', color:'var(--accent)'},
+    {date:'2026-08-05', label:'레귤러 참고 지켜보기', color:'#7c5cd6'},   // 350 미만이면 안 놓기로
   ];
   // 글라진 월 대표 용량 (1~3월=건강기록 메모 평균, 4~6월=인슐린 시트, 7월=10→12 (7/9 증량))
   const DOSE={'2026-01':{v:5.2,l:'5.2'},'2026-02':{v:7.6,l:'7.6'},'2026-03':{v:8.8,l:'8.8'},
