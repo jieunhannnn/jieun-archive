@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260805231653"></script>
-<script src="shots_history.js?v=20260805231653"></script>
-<script src="data.js?v=20260805231653"></script>
+<script src="history.js?v=20260806103555"></script>
+<script src="shots_history.js?v=20260806103555"></script>
+<script src="data.js?v=20260806103555"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -233,13 +233,14 @@
   // ---- stats ----
   const lowsAll = flat(data.map(d=>(d.lows||[]).map(l=>({...l,date:d.date,comp:suspectCompression(d,l)}))));
   const lowDays = new Set(lowsAll.map(l=>l.date));
+  const hiMinAvg = Math.round(allVals.filter(x=>x>=400).length*5/data.length);
   const stats = [
-    {k:'기간', v:data.length, u:'일'},
+    {k:'보폭 안정률', v:Math.round(mean(data.map(d=>dayStability(d).stable))), u:'%'},   // 가장 중요하게 보는 지표
     {k:'평균 혈당', v:Math.round(mean(allVals)), u:'mg/dL'},
-    {k:'최고 · 최저', v:Math.max(...data.map(dayMax))+' · '+Math.min(...data.map(dayMin)), u:''},
-    {k:'보폭 안정률', v:Math.round(mean(data.map(d=>dayStability(d).stable))), u:'%'},
-    {k:'저혈당', v:lowDays.size, u:'일', warn:true},
+    {k:'400 이상', v:hiMinAvg, u:'분/일', warn:hiMinAvg>=60},
     {k:'목표(100–300)', v:Math.round(100*allVals.filter(x=>x>=100&&x<=300).length/allVals.length), u:'%'},
+    {k:'최고 · 최저', v:Math.max(...data.map(dayMax))+' · '+Math.min(...data.map(dayMin)), u:''},
+    {k:'저혈당', v:lowDays.size, u:'일', warn:true},
   ];
   document.getElementById('stats').innerHTML = stats.map(s=>
     `<div class="tile${s.warn?' warn':''}"><div class="k">${s.k}</div>
@@ -469,6 +470,7 @@
       morning:(v=>v==null?null:Math.round(v))(segMean(days,6,12)),    // 아침 6~12시
       noon:(v=>v==null?null:Math.round(v))(segMean(days,12,18)),      // 낮 12~18시
       eve:(v=>v==null?null:Math.round(v))(segMean(days,18,24)),       // 저녁 18~24시
+      hiMin:Math.round(flat(days.map(d=>d.pts.filter(p=>p[1]>=400))).length*5/days.length),  // 하루 평균 400 이상 분
       am:(v=>v==null?null:Math.round(v))(segMean(days,0,12)),         // 오전(큰틀) 0~12시
       pm:(v=>v==null?null:Math.round(v))(segMean(days,12,24)),        // 오후(큰틀) 12~24시
       preAM:(v=>v==null?null:Math.round(v))(segMean(days,7.5,8.5)), prePM:(v=>v==null?null:Math.round(v))(segMean(days,19.5,20.5)),  // 정규주사 직전
@@ -504,12 +506,19 @@
       const all=periodStats(data), dv=s.avg-all.avg;
       const cmp=Math.abs(dv)<8?`전체(${all.avg})와 비슷했어요`:(dv>0?`전체(${all.avg})보다 조금 높았어요`:`전체(${all.avg})보다 조금 낮았어요`);
       p.push(`이번 주는 평균 <b>${s.avg}</b>${jRo(s.avg)} ${cmp}`);
-      p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요`);
+      p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요` +
+             (s.hiMin>0?` (400 이상은 하루 평균 <b>${fmtDur(s.hiMin)}</b>)`:''));
       if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     } else {
-      const lvl=s.target>=85?'대체로 잘 잡혔어요':s.target>=65?'그런대로 관리됐어요':'높은 편이었어요';
-      p.push(`평균 <b>${s.avg}</b>, 목표(100–300) 안에 <b>${s.target}%</b> 있어서 ${lvl}`);
-      p.push(`이 날 최고 <b>${s.max}</b>·최저 <b>${s.min}</b>까지 갔어요`);
+      // 지은님 기준: 하이만 아니면 '일정하게 유지'가 가장 중요 → 안정성을 먼저, 그 다음 어디서 평평했는지
+      const stbTxt = s.stable>=85?'아주 안정적이었어요':s.stable>=71?'그런대로 안정적이었어요':'들쑥날쑥했어요';
+      const lvlTxt = s.avg<=300?`평균 <b>${s.avg}</b>${jRo(s.avg)} 목표 안에서 유지됐어요`
+                   : s.avg<=350?`다만 평균 <b>${s.avg}</b>으로 목표보다 조금 높은 자리였어요`
+                              : `<span class="low">다만 평균 <b>${s.avg}</b>${jRo(s.avg)} 높은 자리에서 평평했어요</span>`;
+      p.push(`보폭이 <b>${s.stable}%</b> 완만해서 ${stbTxt}`);
+      p.push(lvlTxt);
+      p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 ${s.target}%` +
+             (s.hiMin>0?`, <b>400 이상이 ${fmtDur(s.hiMin)}</b>`:''));
       if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     }
     if(s.lowDays>0){
@@ -534,9 +543,7 @@
     }
     // 안정성 (30분 보폭 ±35 이내 = 완만. 뽀송이 분포 59~88% 기준: ≥85 완만 / ≤70 급변)
     if(mode==='day'){
-      if(s.stable>=85) p.push(`👍 혈당 보폭이 <b>완만하게 유지</b>됐어요 (하루의 ${s.stable}%가 30분에 ±35 이내, 최장 <b>${fmtDur(s.longest)}</b> 연속)${s.avg>300?' — 수치는 높아도 천천히 움직인 건 좋은 신호예요':''}`);
-      else if(s.stable<=70) p.push(`혈당이 <b>급하게 움직인 시간이 많았어요</b> (완만한 시간 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
-      else p.push(`보폭은 보통이었어요 (완만한 시간 ${s.stable}%, 최장 ${fmtDur(s.longest)})`);
+      p.push(`가장 길게 완만했던 구간은 <b>${fmtDur(s.longest)}</b>이었어요`);
     } else {
       p.push(`혈당 보폭은 하루의 <b>${s.stable}%</b>가 완만(30분 ±35 이내)했고, 가장 길게 완만했던 구간은 평균 <b>${fmtDur(s.longest)}</b>이었어요`);
     }
@@ -611,7 +618,9 @@
       head+= dv<=-8?`${R} 전월(${pv})보다 <b>▼${-dv}</b> 내려왔어요`: dv>=8?`${R} 전월(${pv})보다 ▲${dv} 올랐어요`:`${R} 전월(${pv})과 비슷했어요`; }
     else head+='이었어요';
     p.push(head);
-    p.push(`최고 <b>${mx}</b>·최저 <b>${mn}</b>, 목표(100–300) 안엔 <b>${tir}%</b>, 보폭은 ${stb}%가 완만했어요`);
+    const hiMin=Math.round(flat(ds.map(d=>(d.hp||[]).filter(p=>p[1]>=400))).length*30/ds.length);
+    p.push(`최고 <b>${mx}</b>·최저 <b>${mn}</b>, 목표(100–300) 안엔 <b>${tir}%</b>, 보폭은 ${stb}%가 완만했어요` +
+           (hiMin>0?` (400 이상 하루 평균 ${fmtDur(hiMin)})`:''));
     // 시간대별 흐름 (모든 날의 30분 곡선 hp 집계)
     const tod=[[0,6,'새벽'],[6,12,'아침'],[12,18,'낮'],[18,24,'저녁']].map(([lo,hi,nm])=>{
       const vs=flat(ds.map(d=>(d.hp||[]).filter(pt=>pt[0]>=lo&&pt[0]<hi).map(pt=>pt[1])));
@@ -650,6 +659,7 @@
     const hi=tod.length>=2?tod.reduce((a,b)=>b.a>a.a?b:a):null;
     let point='';
     if(lr>=3) point=`이 달은 진짜 저혈당이 ${lr}구간으로 많았어요 — 용량을 조금 줄여볼 시점이에요.`;
+    else if(stb>=80 && avg>340) point=`보폭은 안정적인데(${stb}%) 평평한 자리가 평균 ${avg}으로 높아요 — 흔들림보다 '높이'가 과제예요.`;
     else if(tir>=70 && stb>=70) point='높지도 들쑥날쑥하지도 않은, 가장 안정적인 달이에요. 이 흐름 유지가 목표예요.';
     else if(tir<=25) point='혈당이 목표보다 높게 머문 달이에요 — 전반적으로 더 내려야 해요.';
     else if(prevAvg!=null && avg-prevAvg<=-15) point='전월보다 뚜렷이 내려온 달이에요. 변화(용량·주사)가 잘 먹혔어요.';
