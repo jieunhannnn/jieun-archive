@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260807105024"></script>
-<script src="shots_history.js?v=20260807105024"></script>
-<script src="data.js?v=20260807105024"></script>
+<script src="history.js?v=20260807105900"></script>
+<script src="shots_history.js?v=20260807105900"></script>
+<script src="data.js?v=20260807105900"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -300,8 +300,9 @@
   // ============ CHART 3: 개별 하루 곡선 ============
   const WD=['일','월','화','수','목','금','토'];
   const weekday=s=>WD[new Date(s+'T00:00:00').getDay()];
-  function gridY(s,pL,W,pR,y,vals){const g=el('g',{class:'grid'},s);
-    vals.forEach(v=>{el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
+  function gridY(s,pL,W,pR,y,vals,yMax){const g=el('g',{class:'grid'},s);
+    vals.filter(v=>yMax==null||v<=yMax).forEach(v=>{
+      el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
       if(v%100===0) el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;});}
   function rug(s,xfn,d,y){const rb=y(43),rt=y(60);
     dayShots(d).forEach(sh=>{
@@ -318,11 +319,11 @@
     document.getElementById('day-next').disabled=dayIdx===data.length-1;
     document.getElementById('day-today').disabled=dayIdx===data.length-1;
     const W=680,H=250,pL=34,pR=12,pT=12,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=40,yMax=Math.max(420,dayMax(d)+30);
+    const yMin=40,yMax=Math.max(420,Math.ceil((dayMax(d)+30)/100)*100);   // 100단위 올림 → 500선이 기준으로 보이게
     const x=h=>pL+h/24*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
-    gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400]);
+    gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400,450,500],yMax);
     const ax=el('g',{class:'axis'},s);
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
@@ -400,11 +401,11 @@
     document.getElementById('week-next').disabled=weekIdx===weeks.length-1;
     document.getElementById('week-today').disabled=weekIdx===weeks.length-1;
     const W=680,H=280,pL=34,pR=12,pT=12,pB=32, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=40,yMax=Math.max(420,Math.max(...wk.map(dayMax))+20);
+    const yMin=40,yMax=Math.max(420,Math.ceil((Math.max(...wk.map(dayMax))+20)/100)*100);
     const x=(di,h)=>pL+(di*24+h)/totH*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
-    gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400]);
+    gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400,450,500],yMax);
     // 날짜 경계 + 라벨
     const ax=el('g',{class:'axis'},s);
     wk.forEach((d,di)=>{
@@ -726,7 +727,7 @@
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
     const g=el('g',{class:'grid'},s);
-    [100,200,300,400].forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+    [100,200,300,400,500].filter(v=>v<=yMax).forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
     const ax=el('g',{class:'axis'},s);
     [1,5,10,15,20,25,dim].forEach(dd=>el('text',{x:xh((dd-0.5)*24),y:H-8,'text-anchor':'middle'},ax).textContent=dd);
@@ -789,7 +790,7 @@
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
     const g=el('g',{class:'grid'},s);
-    [100,200,300,400].forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
+    [100,200,300,400,500].filter(v=>v<=yMax).forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
     // 글라진 12 증량(7/11) 세로 점선 — 7월 칸 왼쪽 경계
     // 이벤트 마커 (EVENTS 공용 정의)
