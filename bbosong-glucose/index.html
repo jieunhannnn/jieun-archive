@@ -108,7 +108,7 @@
 
 <div class="card">
   <h2>일자별 그래프</h2>
-  <p class="cap">하루 곡선. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 빨간 점은 저혈당 (빈 점은 🛏️ 센서 압박 의심).</p>
+  <p class="cap">하루 곡선. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 그 위 숫자는 <b>맞을 때 혈당</b>(350 이상이면 주황). 빨간 점은 저혈당 (빈 점은 🛏️ 압박 의심).</p>
   <div class="nav">
     <button id="day-prev">‹</button>
     <span class="lbl"><span id="day-label"></span><input type="date" class="jump" id="day-jump"></span>
@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260806103555"></script>
-<script src="shots_history.js?v=20260806103555"></script>
-<script src="data.js?v=20260806103555"></script>
+<script src="history.js?v=20260807105024"></script>
+<script src="shots_history.js?v=20260807105024"></script>
+<script src="data.js?v=20260807105024"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -348,6 +348,13 @@
       if(comp) el('text',{x:x(l.t),y:y(l.val)+16,'text-anchor':'middle','font-size':'9',fill:'var(--low)'},s).textContent='🛏️ 압박 의심';
     });
     rug(s,x,d,y);
+    // 주사 시점 혈당 표시 — 350 기준 판단에 바로 쓰이도록 (350↑ 주황, 미만 회색)
+    dayShots(d).forEach(sh=>{
+      const bg=bgAt(d,sh.h); if(bg==null) return;
+      el('circle',{cx:x(sh.h),cy:y(bg),r:3,fill:'#fff',stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.8},s);
+      el('text',{x:x(sh.h),y:y(bg)-8,'text-anchor':'middle','font-size':'9.5','font-weight':'650',
+        fill:bg>=350?'var(--high)':'var(--muted)'},s).textContent=bg;
+    });
     host.appendChild(s);
     document.getElementById('day-stat').innerHTML=interp([d],'day');
   }
