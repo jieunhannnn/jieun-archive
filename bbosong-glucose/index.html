@@ -179,9 +179,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260807105900"></script>
-<script src="shots_history.js?v=20260807105900"></script>
-<script src="data.js?v=20260807105900"></script>
+<script src="history.js?v=20260807110126"></script>
+<script src="shots_history.js?v=20260807110126"></script>
+<script src="data.js?v=20260807110126"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -721,7 +721,7 @@
     document.getElementById('month-next').disabled=monthIdx===monthKeys.length-1;
     document.getElementById('month-today').disabled=monthIdx===monthKeys.length-1;
     const W=680,H=290,pL=34,pR=12,pT=14,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=30, yMax=Math.max(420,...ds.map(x=>x.max))+15;
+    const yMin=30, yMax=Math.max(420,Math.ceil((Math.max(...ds.map(x=>x.max))+15)/100)*100);
     const xh=ah=>pL+ah/(dim*24)*plotW;             // 절대시간(월초부터 시간) → x
     const y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
@@ -785,7 +785,7 @@
     // 차트
     const host=document.getElementById('chart-monthly');
     const n=M.length, W=680,H=270,pL=34,pR=12,pT=18,pB=30, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=30, yMax=Math.max(420,...M.map(x=>x.max))+15;
+    const yMin=30, yMax=Math.max(420,Math.ceil((Math.max(...M.map(x=>x.max))+15)/100)*100);
     const x=i=>pL+(i+0.5)/n*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
