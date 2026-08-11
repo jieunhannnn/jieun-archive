@@ -182,9 +182,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260811125950"></script>
-<script src="shots_history.js?v=20260811125950"></script>
-<script src="data.js?v=20260811125950"></script>
+<script src="history.js?v=20260811130250"></script>
+<script src="shots_history.js?v=20260811130250"></script>
+<script src="data.js?v=20260811130250"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -568,11 +568,18 @@
         (days[0].lows||[]).forEach(l=>p.push(`<span class="low">${lowNarrative(days[0],l)}</span>`));
       } else {
         const compDays=days.filter(d=>(d.lows||[]).length && d.lows.every(l=>suspectCompression(d,l))).length;
-        p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️${compDays?` (그중 ${compDays}일은 🛏️ 센서 압박 의심)`:''}</span>`);
-        // 가장 낮았던 건의 회복 양상
-        let worst=null, wd=null;
-        days.forEach(d=>(d.lows||[]).forEach(l=>{ if(suspectCompression(d,l))return; if(!worst||l.val<worst.val){worst=l;wd=d;} }));
-        if(worst) p.push(`<span class="low">가장 낮았던 건은 ${fmtDate(wd.date)} — ${lowNarrative(wd,worst)}</span>`);
+        // 주간은 개별 사건이 아니라 '언제 몰렸나 · 얼마나 걸려 회복했나'
+        const evs=[]; days.forEach(d=>(d.lows||[]).forEach(l=>{ if(!suspectCompression(d,l)) evs.push({d,l}); }));
+        if(!evs.length) p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었는데 모두 🛏️ 센서 압박 의심이에요</span>`);
+        if(evs.length){
+          const seg=v=>v<6?'새벽':v<12?'아침':v<18?'낮':'저녁';
+          const cnt={}; evs.forEach(e=>{const k=seg(e.l.t); cnt[k]=(cnt[k]||0)+1;});
+          const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+          const recs=evs.map(e=>{const b=e.d.pts.find(p=>p[0]>e.l.t&&p[1]>=200); return b?(b[0]-e.l.t)*60:null;}).filter(x=>x!=null);
+          const worst=evs.reduce((a,b)=>b.l.val<a.l.val?b:a);
+          p.push(`<span class="low">진짜 저혈당이 ${s.lowDays}일·${evs.length}건 났어요 ⚠️${compDays?` (압박 의심 ${compDays}일 별도)`:''} — ${top[1]}건이 <b>${top[0]}</b>에 몰렸고 가장 낮았던 값은 <b>${worst.l.val}</b>(${fmtDate(worst.d.date)})이에요` +
+                 (recs.length?` · 200까지 회복하는 데 평균 <b>${fmtDur(Math.round(mean(recs)))}</b> 걸렸어요`:'') + `</span>`);
+        }
       }
     } else p.push(`저혈당은 없었어요`);
     // 레귤러(추가 주사) 횟수
@@ -683,11 +690,29 @@
     if(calm.length) p.push(`가장 길게 완만했던 구간은 평균 ${fmtDur(Math.round(mean(calm)))}이었어요`);
     if(lr){
       p.push(`<span class="low">진짜 저혈당 ${lr}구간 ⚠️</span>${lc?` (🛏️ 압박 의심 ${lc}구간 별도)`:''}`);
-      // 그 달 상세 데이터가 있으면 가장 낮았던 건의 회복 양상까지
-      let worst=null, wd=null;
-      data.filter(d=>d.date.slice(0,7)===mk).forEach(d=>(d.lows||[]).forEach(l=>{
-        if(suspectCompression(d,l)) return; if(!worst||l.val<worst.val){worst=l;wd=d;} }));
-      if(worst) p.push(`<span class="low">가장 낮았던 건은 ${fmtDate(wd.date)} — ${lowNarrative(wd,worst)}</span>`);
+      // 월간은 '한 달 안에서 늘고 있나 · 어느 시간대인가'
+      const evs=[];
+      ds.forEach(x=>{ const det=data.find(d=>d.date===x.date);
+        const ls = det ? (det.lows||[]).filter(l=>!suspectCompression(det,l)).map(l=>({t:l.t,val:l.val,date:x.date,det}))
+                       : (x.lows||[]).filter(l=>!l.comp).map(l=>({t:l.t,val:l.val,date:x.date,det:null}));
+        evs.push(...ls); });
+      if(evs.length){
+        const seg=v=>v<6?'새벽':v<12?'아침':v<18?'낮':'저녁';
+        const cnt={}; evs.forEach(e=>{const k=seg(e.t); cnt[k]=(cnt[k]||0)+1;});
+        const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+        const dim=new Date(+mk.slice(0,4),+mk.slice(5,7),0).getDate(), half=Math.ceil(dim/2);
+        const lastDay=+ds[ds.length-1].date.slice(8);
+        let trend='';
+        if(lastDay>half+2){   // 후반부가 어느 정도 지나야 전/후 비교가 의미 있음
+          const early=evs.filter(e=>+e.date.slice(8)<=half).length, late=evs.length-early;
+          trend = late>early*1.5 ? `<b>후반부에 몰렸어요</b> (전반 ${early}건 → 후반 ${late}건)`
+                : early>late*1.5 ? `전반부에 몰렸어요 (전반 ${early}건 → 후반 ${late}건)`
+                                 : `한 달에 고르게 퍼져 있어요`;
+        } else trend = `아직 ${lastDay}일까지 기록이라 추세는 더 봐야 해요`;
+        const recs=evs.filter(e=>e.det).map(e=>{const b=e.det.pts.find(p=>p[0]>e.t&&p[1]>=200); return b?(b[0]-e.t)*60:null;}).filter(x=>x!=null);
+        p.push(`<span class="low">저혈당은 ${top[1]}/${evs.length}건이 <b>${top[0]}</b>에 났고, ${trend}` +
+               (recs.length?` · 200 회복까지 평균 ${fmtDur(Math.round(mean(recs)))}`:'') + `</span>`);
+      }
     }
     else if(lc) p.push(`저혈당 기록 ${lc}구간은 모두 🛏️ 센서 압박 의심이에요`);
     else p.push('저혈당은 없었어요');
