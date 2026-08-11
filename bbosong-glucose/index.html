@@ -64,6 +64,8 @@
   .cmp td{font-variant-numeric:tabular-nums; font-weight:650; color:var(--ink)}
   .cmp .sub{font-size:10.5px; color:var(--faint); font-weight:500; margin-left:3px}
   .cmp .warn{color:var(--low)}
+  .cmp .hl{background:rgba(124,92,214,.07)}
+  .cmp thead th.hl{color:#7c5cd6}
   .insights{list-style:none; padding:0; margin:0}
   .insights li{display:flex; gap:9px; padding:9px 0; border-top:1px solid var(--line); font-size:13px; line-height:1.5}
   .insights li:first-child{border-top:0}
@@ -161,6 +163,7 @@
 
 <div class="card">
   <h2>패턴 요약</h2>
+  <p class="cap" style="margin:0 0 10px">레귤러를 끊기 전후를 나란히 비교해요. 보라색이 <b>배제 후</b> 구간이에요.</p>
   <div id="pattern-compare"></div>
   <ul class="insights">
     <li><span class="ico">🌅</span><div><b>아침 6–10시</b> — 거의 매일 1차 피크. 새벽부터 올라 아침에 최고 찍는 날이 많아요.</div></li>
@@ -179,9 +182,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260811125348"></script>
-<script src="shots_history.js?v=20260811125348"></script>
-<script src="data.js?v=20260811125348"></script>
+<script src="history.js?v=20260811125549"></script>
+<script src="shots_history.js?v=20260811125549"></script>
+<script src="data.js?v=20260811125549"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -572,30 +575,36 @@
   }
 
   // ---- 통합 비교표 (전체 vs 이번 주, 데이터 추가 시 자동 갱신) ----
-  const A=periodStats(data), Wk=periodStats(weeks[weeks.length-1]);
+  // 비교 구간: 전체 / 레귤러 배제 전 / 배제 후 (EVENTS의 '레귤러 안 놓기' 날짜 기준)
+  const EXCL = (EVENTS.find(e=>e.label.includes('레귤러 안 놓기'))||{}).date;
+  const after = data.filter(d=>d.date>=EXCL);
+  const before = data.filter(d=>d.date<EXCL).slice(-Math.max(after.length,5));   // 직전 동일 일수(최소 5일)
+  const A=periodStats(data), Bf=periodStats(before), Af=periodStats(after);
   const rows=[
-    ['평균 혈당', A.avg, Wk.avg, ''],
-    ['목표(100–300) 비율', A.target+'%', Wk.target+'%', ''],
-    ['300 초과 비율', A.over300+'%', Wk.over300+'%', ''],
-    ['최고 / 최저', A.max+'·'+A.min, Wk.max+'·'+Wk.min, ''],
-    ['일 변동폭 <span class="sub">최고−최저</span>', A.range, Wk.range, ''],
-    ['보폭 안정률 <span class="sub">30분 ±35 이내</span>', A.stable+'%', Wk.stable+'%', ''],
-    ['최장 완만 구간', fmtDur(A.longest), fmtDur(Wk.longest), ''],
-    ['저혈당', A.lowDays+'일', Wk.lowDays+'일', 'warn'],
-    ['오전 <span class="sub">0–12시</span>', A.am??'–', Wk.am??'–', ''],
-    ['└ 새벽 <span class="sub">0–6시</span>', A.dawn??'–', Wk.dawn??'–', ''],
-    ['└ 아침 <span class="sub">6–12시</span>', A.morning??'–', Wk.morning??'–', ''],
-    ['오후 <span class="sub">12–24시</span>', A.pm??'–', Wk.pm??'–', ''],
-    ['└ 낮 <span class="sub">12–18시</span>', A.noon??'–', Wk.noon??'–', ''],
-    ['└ 저녁 <span class="sub">18–24시</span>', A.eve??'–', Wk.eve??'–', ''],
-    ['주사 전 <span class="sub">아침·저녁</span>', (A.preAM??'–')+'·'+(A.prePM??'–'), (Wk.preAM??'–')+'·'+(Wk.prePM??'–'), ''],
-    ['하루 주사', A.shots+'회', Wk.shots+'회', ''],
+    ['평균 혈당', A.avg, Bf.avg, Af.avg, ''],
+    ['목표(100–300) 비율', A.target+'%', Bf.target+'%', Af.target+'%', ''],
+    ['400 이상 <span class="sub">하루 평균</span>', fmtDur(A.hiMin), fmtDur(Bf.hiMin), fmtDur(Af.hiMin), ''],
+    ['300 초과 비율', A.over300+'%', Bf.over300+'%', Af.over300+'%', ''],
+    ['최고 / 최저', A.max+'·'+A.min, Bf.max+'·'+Bf.min, Af.max+'·'+Af.min, ''],
+    ['일 변동폭 <span class="sub">최고−최저</span>', A.range, Bf.range, Af.range, ''],
+    ['보폭 안정률 <span class="sub">30분 ±35 이내</span>', A.stable+'%', Bf.stable+'%', Af.stable+'%', ''],
+    ['최장 완만 구간', fmtDur(A.longest), fmtDur(Bf.longest), fmtDur(Af.longest), ''],
+    ['저혈당', A.lowDays+'일', Bf.lowDays+'일', Af.lowDays+'일', 'warn'],
+    ['오전 <span class="sub">0–12시</span>', A.am??'–', Bf.am??'–', Af.am??'–', ''],
+    ['└ 새벽 <span class="sub">0–6시</span>', A.dawn??'–', Bf.dawn??'–', Af.dawn??'–', ''],
+    ['└ 아침 <span class="sub">6–12시</span>', A.morning??'–', Bf.morning??'–', Af.morning??'–', ''],
+    ['오후 <span class="sub">12–24시</span>', A.pm??'–', Bf.pm??'–', Af.pm??'–', ''],
+    ['└ 낮 <span class="sub">12–18시</span>', A.noon??'–', Bf.noon??'–', Af.noon??'–', ''],
+    ['└ 저녁 <span class="sub">18–24시</span>', A.eve??'–', Bf.eve??'–', Af.eve??'–', ''],
+    ['주사 전 <span class="sub">아침·저녁</span>', (A.preAM??'–')+'·'+(A.prePM??'–'), (Bf.preAM??'–')+'·'+(Bf.prePM??'–'), (Af.preAM??'–')+'·'+(Af.prePM??'–'), ''],
+    ['하루 주사', A.shots+'회', Bf.shots+'회', Af.shots+'회', ''],
   ];
   document.getElementById('pattern-compare').innerHTML=
     `<table class="cmp"><thead><tr><th>지표</th>
        <th>전체<span class="sub">${A.n}일</span></th>
-       <th>이번 주<span class="sub">${Wk.n}일</span></th></tr></thead><tbody>`+
-    rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[3]}">${r[1]}</td><td class="${r[3]}">${r[2]}</td></tr>`).join('')+
+       <th>배제 전<span class="sub">${Bf.n}일</span></th>
+       <th class="hl">배제 후<span class="sub">${Af.n}일</span></th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[4]}">${r[1]}</td><td class="${r[4]}">${r[2]}</td><td class="${r[4]} hl">${r[3]}</td></tr>`).join('')+
     `</tbody></table>`;
 
   // ---- 일별 요약 통합 (히스토리 + 상세) — 월간 그래프·월별 추이 공용 ----
