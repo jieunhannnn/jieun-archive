@@ -182,9 +182,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260811125549"></script>
-<script src="shots_history.js?v=20260811125549"></script>
-<script src="data.js?v=20260811125549"></script>
+<script src="history.js?v=20260811125950"></script>
+<script src="shots_history.js?v=20260811125950"></script>
+<script src="data.js?v=20260811125950"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -523,6 +523,25 @@
                             : `가장 높은 <b>${H} ${hiVal}</b>${jI(hiVal)} 높은 편이었어요`;
     return `시간대별 평균은 ${L} <b>${loVal}</b>${jRo(loVal)} 가장 낮고, ${tail}`;
   }
+  // 저혈당 한 건을 "얼마나 떨어졌고 어떻게 회복했나"로 서술 (일·주·월 공통)
+  function lowNarrative(d, l){
+    const after = d.pts.filter(p=>p[0]>l.t);
+    const back200 = after.find(p=>p[1]>=200);
+    const back100 = after.find(p=>p[1]>=100);
+    const rb = d.pts.find(p=>p[0]>l.t && p[0]<=l.t+0.26 && p[1]>=l.val+100);   // 15분 내 +100 급반등
+    const under70 = d.pts.filter(p=>Math.abs(p[0]-l.t)<=2 && p[1]<70).length*5;
+    if(rb) return `${fmtT(l.t)}경 <b>${l.val}</b>까지 떨어졌는데 ${Math.max(5,Math.round((rb[0]-l.t)*60))}분 만에 ${rb[1]}까지 튀어올랐어요 — 🛏️ 센서 압박 의심이라 실제 저혈당이 아닐 수 있어요`;
+    const mins200 = back200 ? Math.round((back200[0]-l.t)*60) : null;
+    let how;
+    if(mins200==null) how='그날 안엔 200까지 회복하지 못했어요';
+    else if(mins200<=30) how=`<b>${mins200}분 만에</b> 200을 넘겨 급하게 올라왔어요`;
+    else if(mins200<=120) how=`${fmtDur(mins200)} 걸려 200을 회복했어요`;
+    else how=`<b>${fmtDur(mins200)}</b>에 걸쳐 천천히 200까지 올라왔어요`;
+    const rebound = after.filter(p=>p[0]<=l.t+6).some(p=>p[1]>=380);
+    return `${fmtT(l.t)}경 <b>${l.val}</b>까지 떨어졌고${under70>=15?` (70 아래로 ${fmtDur(under70)})`:''}, ${how}` +
+           (rebound?` · 이후 380 이상까지 치솟아 <b>반동 고혈당</b>이 의심돼요`:'') +
+           (mins200!=null&&mins200>120?` · 완만한 회복이라 몸이 스스로 끌어올린 모양이에요`:'');
+  }
   function interp(days,mode){
     const s=periodStats(days), {hi,lo}=segHiLo(s), p=[];
     if(mode==='week'){
@@ -546,13 +565,14 @@
     }
     if(s.lowDays>0){
       if(mode==='day'){
-        const l=days[0].lows[0];
-        const rb=days[0].pts.find(q=>q[0]>l.t && q[0]<=l.t+0.26 && q[1]>=l.val+100); // 15분 내 급반등 지점
-        if(rb) p.push(`<span class="low">${fmtT(l.t)}경 저혈당(${l.val})이 찍혔는데, ${Math.max(5,Math.round((rb[0]-l.t)*60))}분 만에 ${rb[1]}까지 올라간 걸 보니 🛏️ 센서 압박(깔고 누움) 의심이에요 — 실제 저혈당이 아닐 수 있어요</span>`);
-        else p.push(`<span class="low">${fmtT(l.t)}경 저혈당(${l.val})이 있었어요 ⚠️</span>`);
+        (days[0].lows||[]).forEach(l=>p.push(`<span class="low">${lowNarrative(days[0],l)}</span>`));
       } else {
         const compDays=days.filter(d=>(d.lows||[]).length && d.lows.every(l=>suspectCompression(d,l))).length;
         p.push(`<span class="low">저혈당이 ${s.lowDays}일 있었어요 ⚠️${compDays?` (그중 ${compDays}일은 🛏️ 센서 압박 의심)`:''}</span>`);
+        // 가장 낮았던 건의 회복 양상
+        let worst=null, wd=null;
+        days.forEach(d=>(d.lows||[]).forEach(l=>{ if(suspectCompression(d,l))return; if(!worst||l.val<worst.val){worst=l;wd=d;} }));
+        if(worst) p.push(`<span class="low">가장 낮았던 건은 ${fmtDate(wd.date)} — ${lowNarrative(wd,worst)}</span>`);
       }
     } else p.push(`저혈당은 없었어요`);
     // 레귤러(추가 주사) 횟수
@@ -661,7 +681,14 @@
       } if(run)calm.push(run);
     });
     if(calm.length) p.push(`가장 길게 완만했던 구간은 평균 ${fmtDur(Math.round(mean(calm)))}이었어요`);
-    if(lr) p.push(`<span class="low">진짜 저혈당 ${lr}구간 ⚠️</span>${lc?` (🛏️ 압박 의심 ${lc}구간 별도)`:''}`);
+    if(lr){
+      p.push(`<span class="low">진짜 저혈당 ${lr}구간 ⚠️</span>${lc?` (🛏️ 압박 의심 ${lc}구간 별도)`:''}`);
+      // 그 달 상세 데이터가 있으면 가장 낮았던 건의 회복 양상까지
+      let worst=null, wd=null;
+      data.filter(d=>d.date.slice(0,7)===mk).forEach(d=>(d.lows||[]).forEach(l=>{
+        if(suspectCompression(d,l)) return; if(!worst||l.val<worst.val){worst=l;wd=d;} }));
+      if(worst) p.push(`<span class="low">가장 낮았던 건은 ${fmtDate(wd.date)} — ${lowNarrative(wd,worst)}</span>`);
+    }
     else if(lc) p.push(`저혈당 기록 ${lc}구간은 모두 🛏️ 센서 압박 의심이에요`);
     else p.push('저혈당은 없었어요');
     // 주사: 글라진 용량 + (상세월) 레귤러 하루 평균
