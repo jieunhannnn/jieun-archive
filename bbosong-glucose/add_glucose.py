@@ -11,6 +11,7 @@ from datetime import datetime
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_SHOTS = ['08:00|g|12', '20:00|g|12']   # 평소 루틴 (예외는 개별 수정)
 DATA_JS = os.path.join(HERE, 'data.js')
 
 def load_existing():
@@ -64,7 +65,9 @@ def build_day(d, R, H):
         else: i += 1
     obj = {'date': d, 'pts': pts, 'max': mx, 'min': mn}
     if lows: obj['lows'] = lows
-    obj['shots'] = []
+    # 기본 주사 루틴: 오전 8시·오후 8시 글라진 12u (지은님 확인, 2026-08-16)
+    # 다른 시각·용량이면 나중에 덮어쓴다. 형식 'HH:MM|g|용량'
+    obj['shots'] = DEFAULT_SHOTS[:]
     return obj
 
 def main():

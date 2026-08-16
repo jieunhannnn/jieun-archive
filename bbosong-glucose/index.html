@@ -182,9 +182,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260814160816"></script>
-<script src="shots_history.js?v=20260814160816"></script>
-<script src="data.js?v=20260814160816"></script>
+<script src="history.js?v=20260816141351"></script>
+<script src="shots_history.js?v=20260816141351"></script>
+<script src="data.js?v=20260816141351"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -220,10 +220,11 @@
   // 아침(4~12시)에서 8시 최근접 1개, 저녁(16~24시)에서 20시 최근접 1개만 글라진(정규), 나머지 전부 레귤러(추가).
   // 'HH:MM|g'/'HH:MM|r' 수동 표시가 있으면 그게 우선.
   const dayShots = d => {
+    // 'HH:MM' | 'HH:MM|g' | 'HH:MM|r' | 'HH:MM|g|12' (세 번째는 용량 u)
     const arr=(d.shots||[]).map(s=>{
-      const [t,k]=s.split('|');
+      const [t,k,u]=s.split('|');
       const [h,m]=t.split(':').map(Number);
-      return {t, h:h+m/60, k:k||null, reg:k==='g'};
+      return {t, h:h+m/60, k:k||null, reg:k==='g', u:u?+u:null};
     });
     [[8,4,12],[20,16,24]].forEach(([anchor,lo,hi])=>{
       if(arr.some(sh=>sh.k==='g' && sh.h>=lo && sh.h<hi)) return; // 수동 글라진 있으면 그대로
@@ -370,6 +371,8 @@
       el('circle',{cx:x(sh.h),cy:y(bg),r:3,fill:'#fff',stroke:sh.reg?'var(--accent)':'var(--high)','stroke-width':1.8},s);
       el('text',{x:x(sh.h),y:y(bg)-8,'text-anchor':'middle','font-size':'9.5','font-weight':'650',
         fill:bg>=350?'var(--high)':'var(--muted)'},s).textContent=bg;
+      if(sh.u!=null) el('text',{x:x(sh.h),y:y(bg)-18,'text-anchor':'middle','font-size':'8.5',
+        fill:sh.reg?'var(--accent)':'var(--high)'},s).textContent=sh.u+'u';
     });
     host.appendChild(s);
     document.getElementById('day-stat').innerHTML=interp([d],'day');
@@ -587,6 +590,10 @@
     if(mode==='day'){
       const rc=regOf(days[0]);
       p.push(rc===0?`레귤러(추가 주사)는 안 맞았어요`:`레귤러(추가 주사)를 <b>${rc}번</b> 맞았어요`);
+      // 글라진 용량이 평소(12u)와 다르면 알려줌
+      const gs=dayShots(days[0]).filter(x=>x.reg&&x.u!=null);
+      const odd=gs.filter(x=>x.u!==12);
+      if(odd.length) p.push(`<b style="color:var(--accent)">글라진 용량이 평소와 달랐어요 — ${odd.map(x=>`${x.t} ${x.u}u`).join(', ')}</b>`);
     } else {
       const rcs=days.map(regOf), tot=rcs.reduce((a,b)=>a+b,0), z=rcs.filter(r=>r===0).length;
       p.push(`레귤러(추가 주사)는 하루 평균 <b>${(tot/days.length).toFixed(1)}번</b> (안 맞은 날 ${z}일·가장 많은 날 ${Math.max(...rcs)}번)`);
