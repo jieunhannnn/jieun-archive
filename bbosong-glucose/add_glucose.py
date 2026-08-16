@@ -66,8 +66,10 @@ def build_day(d, R, H):
     obj = {'date': d, 'pts': pts, 'max': mx, 'min': mn}
     if lows: obj['lows'] = lows
     # 기본 주사 루틴: 오전 8시·오후 8시 글라진 12u (지은님 확인, 2026-08-16)
-    # 다른 시각·용량이면 나중에 덮어쓴다. 형식 'HH:MM|g|용량'
-    obj['shots'] = DEFAULT_SHOTS[:]
+    # ⚠️ 아직 안 온 시각은 넣지 않는다 — 그날 실측이 도달한 시각까지만.
+    last_h = pts[-1][0] if pts else 0
+    obj['shots'] = [sh for sh in DEFAULT_SHOTS
+                    if int(sh.split(':')[0]) <= last_h]
     return obj
 
 def main():

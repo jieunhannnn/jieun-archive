@@ -74,6 +74,16 @@ detail.filter(d => (d.shots || []).length).forEach(d => {
   if (g !== 2 && !KNOWN_GLARGINE_EXCEPTIONS.has(d.date)) W(`${d.date}: 글라진 ${g}회 (보통 2회)`);
   if (r > 6) W(`${d.date}: 레귤러 ${r}회 — 이례적으로 많음`);
 });
+// 실측 범위를 넘어선(아직 오지 않은) 주사 기록 — 자동 채움이 미래를 찍는 사고 방지
+detail.forEach(d => {
+  if (!d.pts || !d.pts.length) return;
+  const last = d.pts[d.pts.length - 1][0];
+  (d.shots || []).forEach(s => {
+    const h = +s.split(':')[0];
+    if (h > last + 0.5) E(`${d.date}: 주사 ${s.split('|')[0]}이 실측 종료(${Math.floor(last)}시) 이후 — 미래 기록`);
+  });
+});
+
 const noShot = detail.filter(d => !(d.shots || []).length).map(d => d.date.slice(5));
 if (noShot.length) N(`주사 기록 없는 날 ${noShot.length}일: ${noShot.join(', ')}`);
 
