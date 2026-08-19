@@ -11,7 +11,8 @@ from datetime import datetime
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_SHOTS = ['08:00|g|12', '20:00|g|12']   # 평소 루틴 (예외는 개별 수정)
+DEFAULT_LONG_U = '12'    # 글라진 기본 용량 (CSV에 용량 없이 시각만 있을 때)
+DEFAULT_FAST_U = '2.5'   # 레귤러 기본 용량
 DATA_JS = os.path.join(HERE, 'data.js')
 
 def load_existing():
@@ -23,7 +24,10 @@ def load_existing():
     return hdr, arr
 
 def parse_csv(path, start):
-    RT = defaultdict(dict); HIST = defaultdict(dict)
+    """혈당(유형 0·1)과 인슐린(유형 4)을 함께 읽는다.
+    리브레 CSV에 주사 기록이 들어있다 — 컬럼 12/13=지속형(글라진), 7/8=초속효(레귤러).
+    '단위' 칸이 비고 '비수치' 칸만 1이면 시각만 기록된 것 → 기본 용량을 쓴다."""
+    RT = defaultdict(dict); HIST = defaultdict(dict); SHOTS = defaultdict(list)
     with open(path, encoding='utf-8') as f:
         r = csv.reader(f); next(r); next(r)
         for row in r:
@@ -35,9 +39,29 @@ def parse_csv(path, start):
             m = dt.hour*60 + dt.minute
             if row[3] == '1' and row[5].strip(): RT[d][m] = int(row[5])
             elif row[3] == '0' and row[4].strip(): HIST[d][m] = int(row[4])
-    return RT, HIST
+            elif row[3] == '4' and len(row) > 12:
+                hhmm = dt.strftime('%H:%M')
+                # 0-based: 11=비수치적 지속형, 12=지속형(단위), 6=비수치적 초속효, 7=초속효(단위)
+                long_u, long_f = row[12].strip(), row[11].strip()
+                fast_u, fast_f = row[7].strip(),  row[6].strip()
+                if long_u or long_f:
+                    SHOTS[d].append((m, f"{hhmm}|g|{_num(long_u) or DEFAULT_LONG_U}"))
+                elif fast_u or fast_f:
+                    SHOTS[d].append((m, f"{hhmm}|r|{_num(fast_u) or DEFAULT_FAST_U}"))
+    for d in SHOTS:
+        SHOTS[d] = [s for _, s in sorted(SHOTS[d])]
+    return RT, HIST, SHOTS
 
-def build_day(d, R, H):
+def _num(x):
+    """'12.0' → '12', 빈 값 → None"""
+    if not x: return None
+    try:
+        v = float(x)
+        return str(int(v)) if v == int(v) else str(v)
+    except ValueError:
+        return None
+
+def build_day(d, R, H, shots=None):
     pts = []
     for m in range(0, 1440, 5):
         v = None
@@ -65,11 +89,7 @@ def build_day(d, R, H):
         else: i += 1
     obj = {'date': d, 'pts': pts, 'max': mx, 'min': mn}
     if lows: obj['lows'] = lows
-    # 기본 주사 루틴: 오전 8시·오후 8시 글라진 12u (지은님 확인, 2026-08-16)
-    # ⚠️ 아직 안 온 시각은 넣지 않는다 — 그날 실측이 도달한 시각까지만.
-    last_h = pts[-1][0] if pts else 0
-    obj['shots'] = [sh for sh in DEFAULT_SHOTS
-                    if int(sh.split(':')[0]) <= last_h]
+    obj['shots'] = shots or []   # 리브레 CSV의 실제 주사 기록 (유형 4)
     return obj
 
 def main():
@@ -92,14 +112,15 @@ def main():
         if redo and min(redo) < start: start = min(redo)
 
     have = {d['date'] for d in arr}
-    RT, HIST = parse_csv(csv_path, start)
+    RT, HIST, SHOTS = parse_csv(csv_path, start)
 
     added = []
     for d in sorted(set(RT) | set(HIST)):
         if d in have: continue
-        obj = build_day(d, RT[d], HIST[d])
+        obj = build_day(d, RT[d], HIST[d], SHOTS.get(d))
         if obj:
-            if d in kept_shots: obj['shots'] = kept_shots[d]
+            # CSV에 주사 기록이 없으면 기존에 손으로 넣어둔 걸 살린다
+            if not obj['shots'] and d in kept_shots: obj['shots'] = kept_shots[d]
             arr.append(obj); added.append(obj)
 
     if not added:
@@ -109,7 +130,8 @@ def main():
     print(f"추가됨: {len(added)}일")
     for o in added:
         lw = ('저혈당 ' + ','.join(str(l['val']) for l in o['lows'])) if 'lows' in o else '저혈당없음'
-        print(f"  {o['date']}: {len(o['pts'])}pt 최고{o['max']} 최저{o['min']} {lw}")
+        sh = ' 주사[' + ', '.join(o['shots']) + ']' if o['shots'] else ' 주사없음'
+        print(f"  {o['date']}: {len(o['pts'])}pt 최고{o['max']} 최저{o['min']} {lw}{sh}")
     print(f"\n총 {len(arr)}일 ({arr[0]['date']}~{arr[-1]['date']})")
 
 if __name__ == '__main__':
