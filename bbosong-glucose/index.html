@@ -49,6 +49,7 @@
   .grid line{stroke:var(--line); stroke-width:1}
   .grid text,.axis text{fill:var(--faint); font-size:10px; font-variant-numeric:tabular-nums}
   .avgline{fill:none; stroke:var(--avg); stroke-width:2.5; stroke-linjoin:round; stroke-linecap:round}
+  .ghostline{fill:none; stroke:var(--faint); stroke-width:1.8; opacity:.32; stroke-linecap:round; stroke-linejoin:round}
   .lowdot{fill:var(--low); stroke:#fff; stroke-width:1.5}
   .lowdot.comp{fill:#fff; stroke:var(--low); stroke-dasharray:2 1.5}
 
@@ -110,7 +111,7 @@
 
 <div class="card">
   <h2>일자별 그래프</h2>
-  <p class="cap">하루 곡선. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 그 위 숫자는 <b>맞을 때 혈당</b>(350 이상이면 주황). 빨간 점은 저혈당 (빈 점은 🛏️ 압박 의심).</p>
+  <p class="cap">하루 곡선. 회색 흐린 선은 <b>전날</b>이에요. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 그 위 숫자는 <b>맞을 때 혈당</b>(350 이상이면 주황). 빨간 점은 저혈당 (빈 점은 🛏️ 압박 의심).</p>
   <div class="nav">
     <button id="day-prev">‹</button>
     <span class="lbl"><span id="day-label"></span><input type="date" class="jump" id="day-jump"></span>
@@ -123,7 +124,7 @@
 
 <div class="card">
   <h2>주간 그래프</h2>
-  <p class="cap">한 주(7일)를 이어 본 곡선. 세로 점선이 날짜 경계예요.</p>
+  <p class="cap">한 주(월~일)를 이어 본 곡선. 회색 흐린 선은 <b>지난주</b>(요일 맞춰 겹침). 세로 점선이 날짜 경계예요.</p>
   <div class="nav">
     <button id="week-prev">‹</button>
     <span class="lbl"><span id="week-label"></span><select class="jump" id="week-jump"></select></span>
@@ -138,7 +139,7 @@
 
 <div class="card">
   <h2>월간 그래프</h2>
-  <p class="cap">한 달 전체를 이어 본 곡선(30분 간격 실측). 빨간 점은 저혈당(빈 점=🛏️ 압박 의심).</p>
+  <p class="cap">한 달 전체를 이어 본 곡선(30분 간격 실측). 회색 흐린 선은 <b>지난달</b>(같은 날짜끼리 겹침). 빨간 점은 저혈당(빈 점=🛏️ 압박 의심).</p>
   <div class="nav">
     <button id="month-prev">‹</button>
     <span class="lbl"><span id="month-label"></span><select class="jump" id="month-jump"></select></span>
@@ -182,9 +183,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260820191732"></script>
-<script src="shots_history.js?v=20260820191732"></script>
-<script src="data.js?v=20260820191732"></script>
+<script src="history.js?v=20260820192046"></script>
+<script src="shots_history.js?v=20260820192046"></script>
+<script src="data.js?v=20260820192046"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -308,6 +309,17 @@
     vals.filter(v=>yMax==null||v<=yMax).forEach(v=>{
       el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v),opacity:v%100===0?1:0.45},g);
       if(v%100===0) el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v;});}
+  // [t, x, y] 목록을 공백(gap 시간 이상)에서 끊어 그린다. 본선과 이전기간 유령선 공통.
+  function drawSeg(s, seq, gap, attrs){
+    let cur=[];
+    const flush=()=>{ if(cur.length>1) el('path',{...attrs,d:smoothPath(cur)},s); cur=[]; };
+    for(let i=0;i<seq.length;i++){
+      if(cur.length && seq[i][0]-seq[i-1][0]>gap) flush();
+      cur.push([seq[i][1],seq[i][2]]);
+    }
+    flush();
+  }
+
   // 주요 사건 — 일자별·주간·월간·월별추이 공통 (렌더보다 먼저 선언할 것: TDZ 방지)
   const EVENTS=[
     {date:'2026-04-05', label:'레귤러 시작', color:'var(--high)'},
@@ -343,6 +355,9 @@
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
       el('text',{x:x(h),y:H-8,'text-anchor':'middle'},ax).textContent=h;});
+    // 전일 곡선을 흐리게 깔아 비교 (있을 때만)
+    const prevD=data[dayIdx-1];
+    if(prevD) drawSeg(s, prevD.pts.map(p=>[p[0],x(p[0]),y(p[1])]), 0.34, {class:'ghostline'});
     // 20분 넘게 값이 비면(센서 교체 등) 선을 끊어 그린다 — 없는 구간을 이어 그리지 않기 위해
     const src=d.pts.slice();
     const next=data[dayIdx+1];
@@ -431,6 +446,16 @@
       el('text',{x:x(di,12),y:H-8,'text-anchor':'middle'},ax).textContent=`${+d.date.split('-')[2]}(${weekday(d.date)})`;
     });
     // 연속 곡선 (각 날 5분 실측을 이어 붙임)
+    // 전주 곡선을 흐리게 (요일 위치를 맞춰 겹침 — 월요일끼리 정렬)
+    const prevWk=weeks[weekIdx-1];
+    if(prevWk){
+      const off=(d)=>{const dt=new Date(d.date+'T00:00:00');return (dt.getDay()+6)%7;};  // 월=0
+      const pseq=[];
+      prevWk.forEach(d=>{const di=off(d); if(di>=nd) return;
+        d.pts.forEach(p=>pseq.push([di*24+p[0], x(di,p[0]), y(p[1])]));});
+      pseq.sort((a,b)=>a[0]-b[0]);
+      drawSeg(s, pseq, 0.34, {class:'ghostline','stroke-width':1.6});
+    }
     // 20분 넘는 공백에서 선 분리 (절대시각 기준)
     const seq=[]; wk.forEach((d,di)=>d.pts.forEach(p=>seq.push([di*24+p[0], x(di,p[0]), y(p[1])])));
     let wseg=[];
@@ -807,6 +832,15 @@
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
     const ax=el('g',{class:'axis'},s);
     [1,5,10,15,20,25,dim].forEach(dd=>el('text',{x:xh((dd-0.5)*24),y:H-8,'text-anchor':'middle'},ax).textContent=dd);
+    // 전월 곡선을 흐리게 (같은 '일'끼리 겹치도록, 월 길이가 달라도 날짜 기준)
+    const pmk=monthKeys[monthIdx-1];
+    if(pmk){
+      const pseq=[];
+      sumByMonth[pmk].forEach(pd=>{ const day=+pd.date.slice(8); if(day>dim) return;
+        (pd.hp||[]).forEach(pt=>{ const ah=(day-1)*24+pt[0]; pseq.push([ah, xh(ah), y(pt[1])]); }); });
+      pseq.sort((a,b)=>a[0]-b[0]);
+      drawSeg(s, pseq, 2, {class:'ghostline','stroke-width':1.4});
+    }
     // 연속 곡선 — 2시간 넘는 공백에서 세그먼트 분리
     const seq=[];
     ds.forEach(d=>{ const day=+d.date.slice(8);
