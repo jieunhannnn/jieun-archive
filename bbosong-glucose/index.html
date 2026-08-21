@@ -183,9 +183,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260821151334"></script>
-<script src="shots_history.js?v=20260821151334"></script>
-<script src="data.js?v=20260821151334"></script>
+<script src="history.js?v=20260821155654"></script>
+<script src="shots_history.js?v=20260821155654"></script>
+<script src="data.js?v=20260821155654"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -562,8 +562,11 @@
     const under70 = d.pts.filter(p=>Math.abs(p[0]-l.t)<=2 && p[1]<70).length*5;
     if(rb) return `${fmtT(l.t)}경 <b>${l.val}</b>까지 떨어졌는데 ${Math.max(5,Math.round((rb[0]-l.t)*60))}분 만에 ${rb[1]}까지 튀어올랐어요 — 🛏️ 센서 압박 의심이라 실제 저혈당이 아닐 수 있어요`;
     const mins200 = back200 ? Math.round((back200[0]-l.t)*60) : null;
+    const lastT = d.pts[d.pts.length-1][0];
+    const cut = lastT < 23;                       // 하루가 아직 안 끝난(기록이 도중에 끊긴) 날
     let how;
-    if(mins200==null) how='그날 안엔 200까지 회복하지 못했어요';
+    if(mins200==null && cut) how=`아직 기록이 ${fmtT(lastT)}까지라 회복 시점은 확인 안 돼요 (그때 ${d.pts[d.pts.length-1][1]})`;
+    else if(mins200==null) how='그날 안엔 200까지 회복하지 못했어요';
     else if(mins200<=30) how=`<b>${mins200}분 만에</b> 200을 넘겨 급하게 올라왔어요`;
     else if(mins200<=120) how=`${fmtDur(mins200)} 걸려 200을 회복했어요`;
     else how=`<b>${fmtDur(mins200)}</b>에 걸쳐 천천히 200까지 올라왔어요`;
