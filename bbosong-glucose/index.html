@@ -183,9 +183,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260826183724"></script>
-<script src="shots_history.js?v=20260826183724"></script>
-<script src="data.js?v=20260826183724"></script>
+<script src="history.js?v=20260826183817"></script>
+<script src="shots_history.js?v=20260826183817"></script>
+<script src="data.js?v=20260826183817"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -620,10 +620,7 @@
     if(mode==='day'){
       const rc=regOf(days[0]);
       p.push(rc===0?`레귤러(추가 주사)는 안 맞았어요`:`레귤러(추가 주사)를 <b>${rc}번</b> 맞았어요`);
-      // 글라진 용량이 평소(12u)와 다르면 알려줌
-      const gs=dayShots(days[0]).filter(x=>x.reg&&x.u!=null);
-      const odd=gs.filter(x=>x.u!==12);
-      if(odd.length) p.push(`<b style="color:var(--accent)">글라진 용량이 평소와 달랐어요 — ${odd.map(x=>`${x.t} ${x.u}u`).join(', ')}</b>`);
+
     } else {
       const rcs=days.map(regOf), tot=rcs.reduce((a,b)=>a+b,0), z=rcs.filter(r=>r===0).length;
       p.push(`레귤러(추가 주사)는 하루 평균 <b>${(tot/days.length).toFixed(1)}번</b> (안 맞은 날 ${z}일·가장 많은 날 ${Math.max(...rcs)}번)`);
