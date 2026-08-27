@@ -183,9 +183,9 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260827104240"></script>
-<script src="shots_history.js?v=20260827104240"></script>
-<script src="data.js?v=20260827104240"></script>
+<script src="history.js?v=20260827104722"></script>
+<script src="shots_history.js?v=20260827104722"></script>
+<script src="data.js?v=20260827104722"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -346,7 +346,9 @@
     document.getElementById('day-next').disabled=dayIdx===data.length-1;
     document.getElementById('day-today').disabled=dayIdx===data.length-1;
     const W=680,H=250,pL=34,pR=12,pT=12,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=40,yMax=Math.min(500,Math.max(420,Math.ceil((dayMax(d)+30)/100)*100));   // 100단위 올림, 500(리브레 상한)에서 끊음
+    const _pd=data[dayIdx-1];   // 전날 유령선도 잘리지 않게 함께 고려
+    const _peak=Math.max(dayMax(d), _pd?dayMax(_pd):0);
+    const yMin=40,yMax=Math.min(500,Math.max(420,Math.ceil((_peak+30)/100)*100));   // 100단위 올림, 500(리브레 상한)에서 끊음
     const x=h=>pL+h/24*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
@@ -434,7 +436,9 @@
     document.getElementById('week-next').disabled=weekIdx===weeks.length-1;
     document.getElementById('week-today').disabled=weekIdx===weeks.length-1;
     const W=680,H=280,pL=34,pR=12,pT=12,pB=32, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=40,yMax=Math.min(500,Math.max(420,Math.ceil((Math.max(...wk.map(dayMax))+20)/100)*100));
+    const _pw=weeks[weekIdx-1];   // 전주 유령선도 고려
+    const _wpeak=Math.max(...wk.map(dayMax), ...(_pw?_pw.map(dayMax):[0]));
+    const yMin=40,yMax=Math.min(500,Math.max(420,Math.ceil((_wpeak+20)/100)*100));
     const x=(di,h)=>pL+(di*24+h)/totH*plotW, y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
@@ -822,7 +826,9 @@
     document.getElementById('month-next').disabled=monthIdx===monthKeys.length-1;
     document.getElementById('month-today').disabled=monthIdx===monthKeys.length-1;
     const W=680,H=290,pL=34,pR=12,pT=14,pB=26, plotW=W-pL-pR,plotH=H-pT-pB;
-    const yMin=30, yMax=Math.min(500,Math.max(420,Math.ceil((Math.max(...ds.map(x=>x.max))+15)/100)*100));
+    const _pm=monthKeys[monthIdx-1];   // 전월 유령선도 고려
+    const _mpeak=Math.max(...ds.map(x=>x.max), ...(_pm?sumByMonth[_pm].map(x=>x.max):[0]));
+    const yMin=30, yMax=Math.min(500,Math.max(420,Math.ceil((_mpeak+15)/100)*100));
     const xh=ah=>pL+ah/(dim*24)*plotW;             // 절대시간(월초부터 시간) → x
     const y=v=>pT+(1-(v-yMin)/(yMax-yMin))*plotH;
     const s=svg(W,H);
