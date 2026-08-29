@@ -73,7 +73,16 @@
   .insights .ico{flex:none; width:20px; text-align:center}
   .insights b{font-weight:650}
 
-  .lows-list{display:flex; flex-direction:column; gap:8px}
+.lows-list{display:flex; flex-direction:column; gap:8px}
+  .low-month{border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .low-month>summary{list-style:none; cursor:pointer; padding:11px 14px; display:flex; align-items:center;
+    justify-content:space-between; gap:8px; font-size:13px; font-weight:650; background:var(--surface); user-select:none}
+  .low-month>summary::-webkit-details-marker{display:none}
+  .low-month>summary::after{content:'▾'; color:var(--faint); font-size:12px; transition:transform .15s}
+  .low-month[open]>summary::after{transform:rotate(180deg)}
+  .low-month .cnt{font-size:11.5px; font-weight:600; color:var(--muted); margin-left:auto; margin-right:4px}
+  .low-month .cnt .r{color:var(--low)}
+  .low-month>.body{display:flex; flex-direction:column; gap:8px; padding:10px 12px}
   .low-item{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; background:rgba(229,72,77,.06);
     border:1px solid rgba(229,72,77,.18); border-radius:12px; padding:9px 12px}
   .low-item .dt{font-weight:650; font-size:13px; font-variant-numeric:tabular-nums}
@@ -177,15 +186,15 @@
 
 <div class="card">
   <h2>⚠️ 저혈당 이벤트</h2>
-  <p class="cap">70 아래로 떨어진 기록. 전부 오후예요.</p>
+  <p class="cap">70 아래로 떨어진 기록. 월별로 묶었어요 — 제목을 눌러 펼치거나 접어요. <span style="color:var(--low)">■</span> 진짜 / 빈칸 🛏️ 압박 의심.</p>
   <div class="lows-list" id="lows-list"></div>
 </div>
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260829153858"></script>
-<script src="shots_history.js?v=20260829153858"></script>
-<script src="data.js?v=20260829153858"></script>
+<script src="history.js?v=20260829162837"></script>
+<script src="shots_history.js?v=20260829162837"></script>
+<script src="data.js?v=20260829162837"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -959,8 +968,11 @@
   })();
 
   // ---- lows list ----
-  document.getElementById('lows-list').innerHTML = lowsAll.length ?
-    lowsAll.sort((a,b)=>a.date.localeCompare(b.date)).map(l=>{
+  (function(){
+    const host=document.getElementById('lows-list');
+    if(!lowsAll.length){ host.innerHTML='<div class="cap">저혈당 기록 없음</div>'; return; }
+    // 한 건을 카드 HTML로
+    const itemHTML = l => {
       const day=data.find(d=>d.date===l.date);
       // 직전 주사 — 그날에 없으면(새벽 저혈당 등) 전날 마지막 주사까지 거슬러 찾는다
       let prior=dayShots(day).filter(sh=>sh.h<=l.t).sort((a,b)=>a.h-b.h).pop(), priorDay=day, prevTag='';
@@ -978,8 +990,21 @@
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
        <span class="meta">${fmtT(l.t)}경${pinfo}${comp}</span></div>`;
-    }).join('')
-    : '<div class="cap">저혈당 기록 없음</div>';
+    };
+    // 월별 그룹 (최신 월이 위, 최신 월만 펼침)
+    const byM={};
+    lowsAll.forEach(l=>{ const m=l.date.slice(0,7); (byM[m]=byM[m]||[]).push(l); });
+    const months=Object.keys(byM).sort().reverse();
+    host.innerHTML = months.map((m,i)=>{
+      const items=byM[m].sort((a,b)=>b.date.localeCompare(a.date) || b.t-a.t);
+      const real=items.filter(l=>!suspectCompression(data.find(d=>d.date===l.date),l)).length;
+      const comp=items.length-real;
+      const cnt=`<span class="cnt">${real?`<span class="r">진짜 ${real}</span>`:''}${real&&comp?' · ':''}${comp?`🛏️ ${comp}`:''}</span>`;
+      return `<details class="low-month"${i===0?' open':''}>`+
+        `<summary>${+m.slice(0,4)}년 ${+m.slice(5)}월 ${cnt}</summary>`+
+        `<div class="body">${items.map(itemHTML).join('')}</div></details>`;
+    }).join('');
+  })();
 })();
 </script>
 </body>
