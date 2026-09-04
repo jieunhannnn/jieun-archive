@@ -13,6 +13,7 @@ from collections import defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_LONG_U = '10'    # 글라진 기본 용량 (지은님 지정, 2026-09-03). 예외만 따로 알려줌
 DEFAULT_FAST_U = '2.5'   # 레귤러 기본 용량
+NOISE_GAP = 30           # 유형1이 유형0과 이만큼 벌어지면 노이즈로 보고 유형0 채택
 DATA_JS = os.path.join(HERE, 'data.js')
 
 def load_existing():
@@ -67,25 +68,31 @@ def build_day(d, R, H, shots=None, recent_dose=DEFAULT_LONG_U):
         v = None
         for dm in (0, 1, -1, 2, -2):
             if m+dm in R: v = R[m+dm]; break
-        if v is None:
-            best = None
-            for dm in range(-7, 8):
-                if m+dm in H and (best is None or abs(dm) < abs(best[0])): best = (dm, H[m+dm])
-            if best: v = best[1]
+        # 가까운 유형0(센서 15분 공식기록) 값
+        ref = None
+        for dm in range(-8, 9):
+            if m+dm in H and (ref is None or abs(dm) < abs(ref[0])): ref = (dm, H[m+dm])
+        # 유형1이 유형0과 NOISE_GAP 이상 어긋나면 센서 접촉 불량으로 보고 유형0을 쓴다.
+        # (리브레 앱도 이런 구간의 1분 값을 곡선에서 빼고 15분 값만 남긴다 — 2026-09-05 확인)
+        if v is not None and ref is not None and abs(v - ref[1]) >= NOISE_GAP:
+            v = ref[1]
+        if v is None and ref is not None:
+            v = ref[1]
         if v is not None: pts.append([round(m/60, 3), v])
     if len(pts) < 24:  # 최소 2시간(24칸)만 있으면 넣는다. 센서 교체일 등 공백 큰 날도 그대로 수록
         return None
-    raw = sorted({**H, **R}.items())
-    vals = [v for _, v in raw]
+    # max/min·저혈당은 노이즈를 걸러낸 pts 기준으로 센다.
+    # (예전엔 raw를 그대로 써서, 센서 접촉 불량 구간의 가짜 저점까지 저혈당으로 잡았음)
+    vals = [v for _, v in pts]
     mx, mn = max(vals), min(vals)
     lows = []; i = 0
-    while i < len(raw):
-        if raw[i][1] < 70:
-            j = i; lo = raw[i]
-            while j < len(raw) and raw[j][1] < 70:
-                if raw[j][1] < lo[1]: lo = raw[j]
+    while i < len(pts):
+        if pts[i][1] < 70:
+            j = i; lo = pts[i]
+            while j < len(pts) and pts[j][1] < 70:
+                if pts[j][1] < lo[1]: lo = pts[j]
                 j += 1
-            lows.append({'t': round(lo[0]/60, 3), 'val': lo[1]}); i = j
+            lows.append({'t': round(lo[0], 3), 'val': lo[1]}); i = j
         else: i += 1
     obj = {'date': d, 'pts': pts, 'max': mx, 'min': mn}
     if lows: obj['lows'] = lows
