@@ -11,7 +11,7 @@ from datetime import datetime
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_LONG_U = '12'    # 글라진 기본 용량 (CSV에 용량 없이 시각만 있을 때)
+DEFAULT_LONG_U = '10'    # 글라진 기본 용량 (지은님 지정, 2026-09-03). 예외만 따로 알려줌
 DEFAULT_FAST_U = '2.5'   # 레귤러 기본 용량
 DATA_JS = os.path.join(HERE, 'data.js')
 
@@ -61,7 +61,7 @@ def _num(x):
     except ValueError:
         return None
 
-def build_day(d, R, H, shots=None):
+def build_day(d, R, H, shots=None, recent_dose=DEFAULT_LONG_U):
     pts = []
     for m in range(0, 1440, 5):
         v = None
@@ -90,6 +90,20 @@ def build_day(d, R, H, shots=None):
     obj = {'date': d, 'pts': pts, 'max': mx, 'min': mn}
     if lows: obj['lows'] = lows
     obj['shots'] = shots or []   # 리브레 CSV의 실제 주사 기록 (유형 4)
+    # CSV에 정규 슬롯(아침 4~12시·저녁 16~24시) 기록이 없으면 8시/20시로 자동 보완.
+    # 지은님 루틴이 오전·오후 8시 고정이라, 앱 입력을 빠뜨린 날을 메운다. (2026-09-03 지시)
+    # ⚠️ 아직 오지 않은 시각은 넣지 않는다 — 그날 실측이 도달한 시각까지만.
+    last_h = pts[-1][0] if pts else 0
+    # 용량 우선순위: ① 그날 CSV에 기록된 글라진 용량 → ② 직전 날짜 용량
+    known = [sh.split('|')[2] for sh in obj['shots']
+             if len(sh.split('|')) > 2 and sh.split('|')[1] == 'g']
+    dose = known[-1] if known else recent_dose
+    for anchor, lo, hi in ((8, 4, 12), (20, 16, 24)):
+        if anchor > last_h: continue
+        h = lambda sh: int(sh[:2]) + int(sh[3:5]) / 60
+        if any(lo <= h(sh) < hi and sh.split('|')[1] == 'g' for sh in obj['shots']): continue
+        obj['shots'].append(f'{anchor:02d}:00|g|{dose}')
+    obj['shots'].sort()
     return obj
 
 def main():
@@ -117,10 +131,17 @@ def main():
     added = []
     for d in sorted(set(RT) | set(HIST)):
         if d in have: continue
-        obj = build_day(d, RT[d], HIST[d], SHOTS.get(d))
+        # CSV 기록 + 기존(손으로 넣은) 기록을 합친다. 같은 슬롯이면 CSV가 우선.
+        csv_shots = SHOTS.get(d) or []
+        merged = list(csv_shots)
+        for old_sh in kept_shots.get(d, []):
+            oh = int(old_sh[:2]) + int(old_sh[3:5]) / 60
+            dup = any(abs((int(c[:2]) + int(c[3:5]) / 60) - oh) <= 1 and
+                      c.split('|')[1:2] == old_sh.split('|')[1:2] for c in csv_shots)
+            if not dup: merged.append(old_sh)
+        merged.sort()
+        obj = build_day(d, RT[d], HIST[d], merged)   # 용량은 CSV값 → 없으면 기본 10u
         if obj:
-            # CSV에 주사 기록이 없으면 기존에 손으로 넣어둔 걸 살린다
-            if not obj['shots'] and d in kept_shots: obj['shots'] = kept_shots[d]
             arr.append(obj); added.append(obj)
 
     if not added:
