@@ -192,10 +192,10 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260914104045"></script>
-<script src="shots_history.js?v=20260914104045"></script>
-<script src="fluid.js?v=20260914104045"></script>
-<script src="data.js?v=20260914104045"></script>
+<script src="history.js?v=20260914110652"></script>
+<script src="shots_history.js?v=20260914110652"></script>
+<script src="fluid.js?v=20260914110652"></script>
+<script src="data.js?v=20260914110652"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -602,20 +602,32 @@
     const s=periodStats(days), {hi,lo}=segHiLo(s), p=[];
     if(mode==='week'){
       const all=periodStats(data), dv=s.avg-all.avg;
-      const cmp=Math.abs(dv)<8?`전체(${all.avg})와 비슷했어요`:(dv>0?`전체(${all.avg})보다 조금 높았어요`:`전체(${all.avg})보다 조금 낮았어요`);
+      // 차이 크기에 맞는 표현 — 58 차이를 '조금'이라 하던 문제
+      const ad=Math.abs(dv);
+      const deg = ad<8?null : ad<25?'조금 ' : ad<50?'' : '꽤 ';
+      const cmp = deg===null ? `전체(${all.avg})와 비슷했어요`
+                             : `전체(${all.avg})보다 ${deg}${dv>0?'높':'낮'}았어요`;
       p.push(`이번 주는 평균 <b>${s.avg}</b>${jRo(s.avg)} ${cmp}`);
       p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 <b>${s.target}%</b> 머물렀어요` +
              (s.hiMin>0?` (400 이상은 하루 평균 <b>${fmtDur(s.hiMin)}</b>)`:''));
       if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     } else {
       // 지은님 기준: 하이만 아니면 '일정하게 유지'가 가장 중요 → 안정성을 먼저, 그 다음 어디서 평평했는지
-      const stbTxt = s.stable>=85?'아주 안정적이었어요':s.stable>=71?'그런대로 안정적이었어요':'들쑥날쑥했어요';
-      const lvlTxt = s.avg<=300?`평균 <b>${s.avg}</b>${jRo(s.avg)} 목표 안에서 유지됐어요`
-                   : s.avg<=350?`다만 평균 <b>${s.avg}</b>으로 목표보다 조금 높은 자리였어요`
-                              : `<span class="low">다만 평균 <b>${s.avg}</b>${jRo(s.avg)} 높은 자리에서 평평했어요</span>`;
-      p.push(`보폭이 <b>${s.stable}%</b> 완만해서 ${stbTxt}`);
+      // 숫자(완만한 비율)와 판정이 같은 방향을 보게 — 예전엔 '70% 완만해서 들쑥날쑥' 같은 모순이 났음
+      const stbTxt = s.stable>=85 ? '아주 안정적이었어요'
+                   : s.stable>=71 ? '그런대로 안정적이었어요'
+                   : s.stable>=55 ? '조금 들쑥날쑥했어요'
+                                  : '많이 들쑥날쑥했어요';
+      // '평균이 300 이하'와 '목표 안에 머물렀다'는 다른 얘기 — 평균만 보고 유지됐다고 하면 안 됨
+      // (8/21: 평균 273인데 목표 안 18%, 최저 40이던 날이 '유지됐어요'로 나왔었음)
+      const lvlTxt = s.target>=70 ? `평균 <b>${s.avg}</b>${jRo(s.avg)}, 하루의 <b>${s.target}%</b>를 목표 안에서 보냈어요`
+                   : s.target>=40 ? `평균은 <b>${s.avg}</b>이지만 목표 안에 있던 시간은 <b>${s.target}%</b>였어요`
+                                  : `<span class="low">평균은 <b>${s.avg}</b>이지만 목표 안에 있던 시간은 <b>${s.target}%</b>뿐이라 폭이 컸어요</span>`;
+      p.push(s.stable>=71
+        ? `혈당 보폭이 <b>${s.stable}%</b> 완만해서 ${stbTxt}`
+        : `혈당 보폭이 완만했던 시간은 <b>${s.stable}%</b>뿐이라 ${stbTxt}`);
       p.push(lvlTxt);
-      p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>, 목표(100–300) 안엔 ${s.target}%` +
+      p.push(`최고 <b>${s.max}</b>·최저 <b>${s.min}</b>` +
              (s.hiMin>0?`, <b>400 이상이 ${fmtDur(s.hiMin)}</b>`:''));
       if(hi&&lo&&hi[0]!==lo[0]) p.push(todSentence(lo[0],lo[1],hi[0],hi[1]));
     }
