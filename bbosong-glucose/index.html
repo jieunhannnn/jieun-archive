@@ -83,6 +83,22 @@
   .low-month .cnt{font-size:11.5px; font-weight:600; color:var(--muted); margin-left:auto; margin-right:4px}
   .low-month .cnt .r{color:var(--low)}
   .low-month>.body{display:flex; flex-direction:column; gap:8px; padding:10px 12px}
+  .lab{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:10px}
+  .lab>summary{list-style:none; cursor:pointer; padding:11px 14px; display:flex; align-items:center;
+    gap:8px; font-size:13px; font-weight:650; background:var(--surface)}
+  .lab>summary::-webkit-details-marker{display:none}
+  .lab>summary::after{content:'▾'; color:var(--faint); font-size:12px; margin-left:auto; transition:transform .15s}
+  .lab[open]>summary::after{transform:rotate(180deg)}
+  .lab .sum{font-size:11.5px; font-weight:500; color:var(--low)}
+  .lab>.body{padding:4px 12px 12px}
+  .lab .grp{font-size:11px; color:var(--muted); font-weight:600; margin:10px 0 4px}
+  .lab table{width:100%; border-collapse:collapse; font-size:12.5px}
+  .lab td{padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:top}
+  .lab td.v{text-align:right; font-variant-numeric:tabular-nums; font-weight:650; white-space:nowrap}
+  .lab td.rng{text-align:right; font-size:10.5px; color:var(--faint); white-space:nowrap; width:1%}
+  .lab tr.bad td.v{color:var(--low)}
+  .lab tr.bad td:first-child{font-weight:650}
+  .lab .note{display:block; font-size:10.5px; color:var(--faint); font-weight:400; margin-top:2px}
   .low-item{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; background:rgba(229,72,77,.06);
     border:1px solid rgba(229,72,77,.18); border-radius:12px; padding:9px 12px}
   .low-item .dt{font-weight:650; font-size:13px; font-variant-numeric:tabular-nums}
@@ -184,6 +200,12 @@
   </ul>
 </div>
 
+<div class="card" id="labs-card" style="display:none">
+  <h2>🩺 검사 기록</h2>
+  <p class="cap">병원 검사 결과. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
+  <div id="labs-list"></div>
+</div>
+
 <div class="card">
   <h2>⚠️ 저혈당 이벤트</h2>
   <p class="cap">70 아래로 떨어진 기록. 월별로 묶었어요 — 제목을 눌러 펼치거나 접어요. <span style="color:var(--low)">■</span> 진짜 / 빈칸 🛏️ 압박 의심.</p>
@@ -192,10 +214,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260915180337"></script>
-<script src="shots_history.js?v=20260915180337"></script>
-<script src="fluid.js?v=20260915180337"></script>
-<script src="data.js?v=20260915180337"></script>
+<script src="history.js?v=20260915180837"></script>
+<script src="shots_history.js?v=20260915180837"></script>
+<script src="fluid.js?v=20260915180837"></script>
+<script src="labs.js?v=20260915180837"></script>
+<script src="data.js?v=20260915180837"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -998,6 +1021,32 @@
     document.getElementById('monthly-note').innerHTML=
       `${+f.m.slice(5)}월 평균 <b>${f.avg}</b> → ${+l.m.slice(5)}월 <b>${l.avg}</b>${dv<0?` (<b>▼${-dv}</b> 내려왔어요)`:dv>0?` (▲${dv} 올랐어요)`:''}. `+
       `진짜 저혈당은 이전 기간 <span class="low">${firstHalfLows}구간</span> → 최근 두 달 <span class="low">${M.slice(-2).reduce((a,x)=>a+x.lowsR,0)}구간</span>이에요.`;
+  })();
+
+  // ---- 검사 기록 (labs.js) ----
+  (function(){
+    const L=window.LABS||[]; if(!L.length) return;
+    document.getElementById('labs-card').style.display='';
+    const host=document.getElementById('labs-list');
+    host.innerHTML = L.slice().sort((a,b)=>b.date.localeCompare(a.date)).map((lab,idx)=>{
+      const rows = lab.groups.map(g=>{
+        const trs = g.items.map(i=>{
+          const bad = (i.hi!=null && i.v>i.hi) || (i.lo!=null && i.v<i.lo);
+          const rng = i.lo!=null&&i.hi!=null ? `${i.lo}~${i.hi}` : i.hi!=null ? `~${i.hi}` : '';
+          return `<tr class="${bad?'bad':''}">
+            <td>${i.k}${i.note?`<span class="note">${i.note}</span>`:''}</td>
+            <td class="v">${i.v}${i.unit?` <span style="font-weight:400;color:var(--faint);font-size:10.5px">${i.unit}</span>`:''}</td>
+            <td class="rng">${rng}</td></tr>`;
+        }).join('');
+        return `<div class="grp">${g.name}</div><table>${trs}</table>`;
+      }).join('');
+      const badN = lab.groups.reduce((a,g)=>a+g.items.filter(i=>(i.hi!=null&&i.v>i.hi)||(i.lo!=null&&i.v<i.lo)).length,0);
+      return `<details class="lab"${idx===0?' open':''}>
+        <summary>${fmtDate(lab.date)} <span class="sub" style="font-weight:500;color:var(--faint)">${lab.place||''}</span>
+          ${badN?`<span class="sum">이상 ${badN}개</span>`:''}</summary>
+        <div class="body">${lab.summary?`<p class="cap" style="margin:8px 0 0">${lab.summary}</p>`:''}${rows}</div>
+      </details>`;
+    }).join('');
   })();
 
   // ---- lows list ----
