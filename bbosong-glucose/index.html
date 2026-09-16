@@ -99,6 +99,13 @@
   .lab tr.bad td.v{color:var(--low)}
   .lab tr.bad td:first-child{font-weight:650}
   .lab .note{display:block; font-size:10.5px; color:var(--faint); font-weight:400; margin-top:2px}
+  .lab .reading{margin-top:14px; background:var(--surface); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px}
+  .lab .reading ul{list-style:none; padding:0; margin:0}
+  .lab .reading li{padding:7px 0; border-top:1px solid var(--line); font-size:12.5px; line-height:1.65}
+  .lab .reading li:first-child{border-top:0}
+  .lab .reading b{display:block; font-weight:650; margin-bottom:2px}
+  .lab .reading span{color:var(--muted)}
   .low-item{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; background:rgba(229,72,77,.06);
     border:1px solid rgba(229,72,77,.18); border-radius:12px; padding:9px 12px}
   .low-item .dt{font-weight:650; font-size:13px; font-variant-numeric:tabular-nums}
@@ -181,6 +188,13 @@
   <h2>월별 추이 (1월~)</h2>
   <p class="cap">월별 평균(점·선)과 최저–최고 폭. 점선은 주요 사건(레귤러·글라진·수액/혈압약). 빨간 숫자는 진짜 저혈당 구간 수.</p>
   <div id="chart-monthly"></div>
+
+<div class="card" id="labs-card" style="display:none">
+  <h2>🩺 검사 기록</h2>
+  <p class="cap">병원 검사 결과. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
+  <div id="labs-list"></div>
+</div>
+
   <p class="cap" style="margin:12px 0 0">글라진 1회 용량 추이 (u) · 1~3월은 기록 메모 평균</p>
   <div id="chart-dose"></div>
   <div id="monthly-table"></div>
@@ -200,12 +214,6 @@
   </ul>
 </div>
 
-<div class="card" id="labs-card" style="display:none">
-  <h2>🩺 검사 기록</h2>
-  <p class="cap">병원 검사 결과. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
-  <div id="labs-list"></div>
-</div>
-
 <div class="card">
   <h2>⚠️ 저혈당 이벤트</h2>
   <p class="cap">70 아래로 떨어진 기록. 월별로 묶었어요 — 제목을 눌러 펼치거나 접어요. <span style="color:var(--low)">■</span> 진짜 / 빈칸 🛏️ 압박 의심.</p>
@@ -214,11 +222,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260916174429"></script>
-<script src="shots_history.js?v=20260916174429"></script>
-<script src="fluid.js?v=20260916174429"></script>
-<script src="labs.js?v=20260916174429"></script>
-<script src="data.js?v=20260916174429"></script>
+<script src="history.js?v=20260916174637"></script>
+<script src="shots_history.js?v=20260916174637"></script>
+<script src="fluid.js?v=20260916174637"></script>
+<script src="labs.js?v=20260916174637"></script>
+<script src="data.js?v=20260916174637"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -643,9 +651,15 @@
                                   : '많이 들쑥날쑥했어요';
       // '평균이 300 이하'와 '목표 안에 머물렀다'는 다른 얘기 — 평균만 보고 유지됐다고 하면 안 됨
       // (8/21: 평균 273인데 목표 안 18%, 최저 40이던 날이 '유지됐어요'로 나왔었음)
+      // 목표 밖으로 나간 이유가 '높아서'인지 '폭이 커서'인지 구분한다.
+      // (9/16: 최저 246·폭 146인데 '폭이 컸어요'라고 나왔던 문제 — 사실은 계속 높았던 날)
+      const vAll=dayVals(days[0]);
+      const pctLow=Math.round(100*vAll.filter(x=>x<100).length/vAll.length);
+      const pctHigh=Math.round(100*vAll.filter(x=>x>300).length/vAll.length);
       const lvlTxt = s.target>=70 ? `평균 <b>${s.avg}</b>${jRo(s.avg)}, 하루의 <b>${s.target}%</b>를 목표 안에서 보냈어요`
                    : s.target>=40 ? `평균은 <b>${s.avg}</b>이지만 목표 안에 있던 시간은 <b>${s.target}%</b>였어요`
-                                  : `<span class="low">평균은 <b>${s.avg}</b>이지만 목표 안에 있던 시간은 <b>${s.target}%</b>뿐이라 폭이 컸어요</span>`;
+                   : pctLow>=10   ? `<span class="low">목표 안에 있던 시간이 <b>${s.target}%</b>뿐이에요 — 아래위로 오르내려 폭이 컸어요 (100 미만 ${pctLow}%, 300 초과 ${pctHigh}%)</span>`
+                                  : `<span class="low">목표 안에 있던 시간이 <b>${s.target}%</b>뿐이에요 — 하루의 <b>${pctHigh}%</b>를 300 위에서 보냈어요</span>`;
       p.push(s.stable>=71
         ? `혈당 보폭이 <b>${s.stable}%</b> 완만해서 ${stbTxt}`
         : `혈당 보폭이 완만했던 시간은 <b>${s.stable}%</b>뿐이라 ${stbTxt}`);
@@ -1041,10 +1055,13 @@
         return `<div class="grp">${g.name}</div><table>${trs}</table>`;
       }).join('');
       const badN = lab.groups.reduce((a,g)=>a+g.items.filter(i=>(i.hi!=null&&i.v>i.hi)||(i.lo!=null&&i.v<i.lo)).length,0);
+      const reading = (lab.reading||[]).map(r=>
+        `<li><b>${r.t}</b><span>${r.d}</span></li>`).join('');
       return `<details class="lab"${idx===0?' open':''}>
         <summary>${fmtDate(lab.date)} <span class="sub" style="font-weight:500;color:var(--faint)">${lab.place||''}</span>
           ${badN?`<span class="sum">이상 ${badN}개</span>`:''}</summary>
-        <div class="body">${lab.summary?`<p class="cap" style="margin:8px 0 0">${lab.summary}</p>`:''}${rows}</div>
+        <div class="body">${lab.summary?`<p class="cap" style="margin:8px 0 0">${lab.summary}</p>`:''}${rows}
+        ${reading?`<div class="reading"><div class="grp">읽어보면</div><ul>${reading}</ul></div>`:''}</div>
       </details>`;
     }).join('');
   })();
