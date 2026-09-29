@@ -132,6 +132,12 @@
   <div class="sub">글라진 12 증량 기간 · <span id="range-label"></span></div>
 </header>
 
+<div class="card" id="labs-card" style="display:none">
+  <h2>🩺 검사 기록</h2>
+  <p class="cap">병원 검사 결과. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
+  <div id="labs-list"></div>
+</div>
+
 <div class="card">
   <h2>일자별 그래프</h2>
   <p class="cap">하루 곡선. 회색 흐린 선은 <b>전날</b>이에요. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 그 위 숫자는 <b>맞을 때 혈당</b>(350 이상이면 주황). 빨간 점은 저혈당 (빈 점은 🛏️ 압박 의심).</p>
@@ -180,12 +186,6 @@
   <p class="cap">월별 평균(점·선)과 최저–최고 폭. 점선은 주요 사건(레귤러·글라진·수액/혈압약). 빨간 숫자는 진짜 저혈당 구간 수.</p>
   <div id="chart-monthly"></div>
 
-<div class="card" id="labs-card" style="display:none">
-  <h2>🩺 검사 기록</h2>
-  <p class="cap">병원 검사 결과. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
-  <div id="labs-list"></div>
-</div>
-
   <p class="cap" style="margin:12px 0 0">글라진 1회 용량 추이 (u) · 1~3월은 기록 메모 평균</p>
   <div id="chart-dose"></div>
   <div id="monthly-table"></div>
@@ -213,11 +213,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260929200752"></script>
-<script src="shots_history.js?v=20260929200752"></script>
-<script src="fluid.js?v=20260929200752"></script>
-<script src="labs.js?v=20260929200752"></script>
-<script src="data.js?v=20260929200752"></script>
+<script src="history.js?v=20260929200909"></script>
+<script src="shots_history.js?v=20260929200909"></script>
+<script src="fluid.js?v=20260929200909"></script>
+<script src="labs.js?v=20260929200909"></script>
+<script src="data.js?v=20260929200909"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
