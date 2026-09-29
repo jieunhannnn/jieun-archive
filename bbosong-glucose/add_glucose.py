@@ -11,7 +11,7 @@ from datetime import datetime
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_LONG_U = '10'    # 글라진 기본 용량 (지은님 지정, 2026-09-03). 예외만 따로 알려줌
+DEFAULT_LONG_U = '10.5'  # 글라진 기본 용량 (2026-09-29 지은님이 10 → 10.5로 변경)
 DEFAULT_FAST_U = '2.5'   # 레귤러 기본 용량
 NOISE_GAP = 30           # 유형1이 유형0과 이만큼 벌어지면 노이즈로 보고 유형0 채택
 DATA_JS = os.path.join(HERE, 'data.js')
