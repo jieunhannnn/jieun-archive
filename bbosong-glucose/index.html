@@ -133,8 +133,8 @@
 </header>
 
 <div class="card" id="labs-card" style="display:none">
-  <h2>🩺 검사 기록</h2>
-  <p class="cap">병원 검사 결과. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
+  <h2>🩺 진료 기록</h2>
+  <p class="cap">병원 진료·검사 내용. 날짜를 눌러 펼쳐요. <span class="low">빨간 값</span>이 정상 범위를 벗어난 항목이에요.</p>
   <div id="labs-list"></div>
 </div>
 
@@ -213,11 +213,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260929200909"></script>
-<script src="shots_history.js?v=20260929200909"></script>
-<script src="fluid.js?v=20260929200909"></script>
-<script src="labs.js?v=20260929200909"></script>
-<script src="data.js?v=20260929200909"></script>
+<script src="history.js?v=20260929201022"></script>
+<script src="shots_history.js?v=20260929201022"></script>
+<script src="fluid.js?v=20260929201022"></script>
+<script src="labs.js?v=20260929201022"></script>
+<script src="data.js?v=20260929201022"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -1017,7 +1017,7 @@
       `진짜 저혈당은 이전 기간 <span class="low">${firstHalfLows}구간</span> → 최근 두 달 <span class="low">${M.slice(-2).reduce((a,x)=>a+x.lowsR,0)}구간</span>이에요.`;
   })();
 
-  // ---- 검사 기록 (labs.js) ----
+  // ---- 진료 기록 (labs.js) ----
   (function(){
     const L=window.LABS||[]; if(!L.length) return;
     document.getElementById('labs-card').style.display='';
