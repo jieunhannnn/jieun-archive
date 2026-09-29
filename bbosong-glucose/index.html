@@ -37,13 +37,6 @@
   .card h2{font-size:14px; font-weight:650; margin:0 0 2px; letter-spacing:-.01em}
   .card .cap{font-size:11.5px; color:var(--muted); margin:0 0 12px; line-height:1.5}
 
-  /* stat tiles */
-  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:14px}
-  .tile{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 12px}
-  .tile .k{font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:-.01em}
-  .tile .v{font-size:21px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1}
-  .tile .u{font-size:11px; color:var(--faint); font-weight:500; margin-left:2px}
-  .tile.warn .v{color:var(--low)}
 
   svg{display:block; width:100%; height:auto; overflow:visible}
   .grid line{stroke:var(--line); stroke-width:1}
@@ -139,8 +132,6 @@
   <div class="sub">글라진 12 증량 기간 · <span id="range-label"></span></div>
 </header>
 
-<div class="stats" id="stats"></div>
-
 <div class="card">
   <h2>일자별 그래프</h2>
   <p class="cap">하루 곡선. 회색 흐린 선은 <b>전날</b>이에요. 아래 화살표로 날짜를 넘겨요. 세로 눈금은 주사, 그 위 숫자는 <b>맞을 때 혈당</b>(350 이상이면 주황). 빨간 점은 저혈당 (빈 점은 🛏️ 압박 의심).</p>
@@ -222,11 +213,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20260929200557"></script>
-<script src="shots_history.js?v=20260929200557"></script>
-<script src="fluid.js?v=20260929200557"></script>
-<script src="labs.js?v=20260929200557"></script>
-<script src="data.js?v=20260929200557"></script>
+<script src="history.js?v=20260929200752"></script>
+<script src="shots_history.js?v=20260929200752"></script>
+<script src="fluid.js?v=20260929200752"></script>
+<script src="labs.js?v=20260929200752"></script>
+<script src="data.js?v=20260929200752"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -279,18 +270,6 @@
   // ---- stats ----
   const lowsAll = flat(data.map(d=>(d.lows||[]).map(l=>({...l,date:d.date,comp:suspectCompression(d,l)}))));
   const lowDays = new Set(lowsAll.map(l=>l.date));
-  const hiMinAvg = Math.round(allVals.filter(x=>x>=400).length*5/data.length);
-  const stats = [
-    {k:'보폭 안정률', v:Math.round(mean(data.map(d=>dayStability(d).stable))), u:'%'},   // 가장 중요하게 보는 지표
-    {k:'평균 혈당', v:Math.round(mean(allVals)), u:'mg/dL'},
-    {k:'400 이상', v:hiMinAvg, u:'분/일', warn:hiMinAvg>=60},
-    {k:'목표(100–300)', v:Math.round(100*allVals.filter(x=>x>=100&&x<=300).length/allVals.length), u:'%'},
-    {k:'최고 · 최저', v:Math.max(...data.map(dayMax))+' · '+Math.min(...data.map(dayMin)), u:''},
-    {k:'저혈당', v:lowDays.size, u:'일', warn:true},
-  ];
-  document.getElementById('stats').innerHTML = stats.map(s=>
-    `<div class="tile${s.warn?' warn':''}"><div class="k">${s.k}</div>
-     <div class="v">${s.v}<span class="u">${s.u}</span></div></div>`).join('');
 
   document.getElementById('range-label').textContent =
     `${fmtDate(data[0].date)} – ${fmtDate(data[data.length-1].date)} (${data.length}일)`;
@@ -1058,7 +1037,7 @@
       const badN = lab.groups.reduce((a,g)=>a+g.items.filter(i=>(i.hi!=null&&i.v>i.hi)||(i.lo!=null&&i.v<i.lo)).length,0);
       const reading = (lab.reading||[]).map(r=>
         `<li><b>${r.t}</b><span>${r.d}</span></li>`).join('');
-      return `<details class="lab"${idx===0?' open':''}>
+      return `<details class="lab">
         <summary>${fmtDate(lab.date)} <span class="sub" style="font-weight:500;color:var(--faint)">${lab.place||''}</span>
           ${badN?`<span class="sum">이상 ${badN}개</span>`:''}</summary>
         <div class="body">${lab.summary?`<p class="cap" style="margin:8px 0 0">${lab.summary}</p>`:''}${rows}
