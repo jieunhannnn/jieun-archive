@@ -183,7 +183,7 @@
 
 <div class="card">
   <h2>월별 추이 (1월~)</h2>
-  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 점선은 주요 사건(레귤러·글라진·수액/혈압약). 빨간 숫자는 진짜 저혈당 구간 수.</p>
+  <p class="cap">월별 평균(점·선)과 최저–최고 폭. 점선은 주요 사건(레귤러·글라진·수액/혈압약). 빨간 숫자는 진짜 저혈당 구간 수. 회색 띠는 센서 이상 기간(10/16~10/22) — 10월 최저값엔 이 기간 가짜 급락이 섞여 있어요.</p>
   <div id="chart-monthly"></div>
 
   <p class="cap" style="margin:12px 0 0">글라진 1회 용량 추이 (u) · 1~3월은 기록 메모 평균</p>
@@ -197,6 +197,7 @@
   <p class="cap" style="margin:0 0 10px">레귤러를 끊기 전후를 나란히 비교해요. 보라색이 <b>배제 후</b> 구간이에요.</p>
   <div id="pattern-compare"></div>
   <ul class="insights">
+    <li><span class="ico">▒</span><div><b>센서 이상 기간 10/16 11:10 ~ 10/22 10:29</b> — 10/16에 바꾼 센서가 아침·저녁 주사 직후 몇 분 만에 200 넘게 떨어졌다 바로 회복하는 <b>가짜 급락</b>을 반복했어요 (10/16 저녁 324→95, 4분). 결국 10/22 고장 나 교체했어요. 이 기간의 최저값·변동폭은 실제가 아니라고 보세요.</div></li>
     <li><span class="ico">🌅</span><div><b>아침 6–10시</b> — 거의 매일 1차 피크. 새벽부터 올라 아침에 최고 찍는 날이 많아요.</div></li>
     <li><span class="ico">📉</span><div><b>오후 12–3시 최저점</b> — 아침 인슐린 작용이 몰리는 시간. <b>저혈당도 전부 이 구간</b>에서 났어요.</div></li>
     <li><span class="ico">🌙</span><div><b>저녁 6–9시</b> — 낮에 내려왔다가 다시 오르는 2차 피크.</div></li>
@@ -213,11 +214,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20261020195403"></script>
-<script src="shots_history.js?v=20261020195403"></script>
-<script src="fluid.js?v=20261020195403"></script>
-<script src="labs.js?v=20261020195403"></script>
-<script src="data.js?v=20261020195403"></script>
+<script src="history.js?v=20261023160507"></script>
+<script src="shots_history.js?v=20261023160507"></script>
+<script src="fluid.js?v=20261023160507"></script>
+<script src="labs.js?v=20261023160507"></script>
+<script src="data.js?v=20261023160507"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -356,6 +357,25 @@
     {date:'2026-09-08', label:'수액 50ml×4로 변경',      short:'수액50×4', color:'#0e9f9f'},
     {date:'2026-09-29', label:'글라진 10.5 증량·수액 250ml', short:'글10.5·수250', color:'var(--accent)'},
   ];
+  // 센서 이상 기간 — 값을 믿기 어려운 구간 (회색 띠로 전 차트 공통 표시)
+  // 2026-10-16 교체한 센서: 주사 직후 몇 분 만에 200 넘게 떨어졌다 회복하는 가짜 급락 반복 → 10/22 고장으로 교체
+  const SENSOR_BAD=[{from:'2026-10-16 11:10', to:'2026-10-22 10:29', label:'센서 이상'}];
+  function _hm(s){ return +s.slice(11,13) + +s.slice(14,16)/60; }
+  function badHours(date){            // 그날 이상 구간 [시작시, 끝시] (없으면 null)
+    for(const b of SENSOR_BAD){ const f=b.from.slice(0,10), t=b.to.slice(0,10);
+      if(date<f||date>t) continue;
+      return [date===f?_hm(b.from):0, date===t?_hm(b.to):24]; }
+    return null;
+  }
+  function badBand(s,x0,x1,pT,plotH,label){
+    el('rect',{x:x0,y:pT,width:Math.max(0,x1-x0),height:plotH,fill:'#8a8f98',opacity:.18},s);
+    if(label && x1-x0>50) el('text',{x:x0+4,y:pT+plotH-6,'font-size':'9',fill:'#5f6570'},s).textContent=label;
+  }
+  function badNote(days){             // 기간에 이상 구간이 걸리면 안내 문구
+    const hit=days.filter(d=>badHours(d.date)); if(!hit.length) return '';
+    const b=SENSOR_BAD[0];
+    return `<p class="cap" style="margin:0 0 6px;color:#5f6570">▒ 회색 띠는 <b>센서 이상 기간</b>(${fmtDate(b.from.slice(0,10))} ${b.from.slice(11)} ~ ${fmtDate(b.to.slice(0,10))} ${b.to.slice(11)})이에요. 주사 직후 가짜 급락이 반복돼 이 구간 최저값·폭은 실제보다 나쁘게 나와요.</p>`;
+  }
   // 세로 점선 + 라벨
   function evLine(s,xb,pT,plotH,e,short){
     el('line',{x1:xb,y1:pT,x2:xb,y2:pT+plotH,stroke:e.color,'stroke-dasharray':'4 3','stroke-width':1.5,opacity:.75},s);
@@ -383,6 +403,7 @@
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
     gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400,450,500],yMax);
+    { const bh=badHours(d.date); if(bh) badBand(s,x(bh[0]),x(bh[1]),pT,plotH,'센서 이상 기간'); }
     const ax=el('g',{class:'axis'},s);
     [0,3,6,9,12,15,18,21,24].forEach(h=>{
       el('line',{x1:x(h),y1:pT,x2:x(h),y2:H-pB,stroke:'var(--line)',opacity:.4},s);
@@ -422,7 +443,7 @@
         fill:sh.reg?'var(--accent)':'var(--high)'},s).textContent=sh.u+'u';
     });
     host.appendChild(s);
-    document.getElementById('day-stat').innerHTML=interp([d],'day');
+    document.getElementById('day-stat').innerHTML=badNote([d])+interp([d],'day');
   }
   drawOneDay();
   function goDay(dl){const i=dayIdx+dl; if(i>=0&&i<data.length){dayIdx=i;drawOneDay();}}
@@ -473,6 +494,8 @@
     const s=svg(W,H);
     el('rect',{x:pL,y:y(300),width:plotW,height:y(100)-y(300),fill:'var(--target-bg)'},s);
     gridY(s,pL,W,pR,y,[100,150,200,250,300,350,400,450,500],yMax);
+    { let lab=true; wk.forEach((d,di)=>{ const bh=badHours(d.date); if(!bh) return;
+        badBand(s,x(di,bh[0]),x(di,bh[1]),pT,plotH,lab?'센서 이상':null); lab=false; }); }
     // 날짜 경계 + 라벨
     const ax=el('g',{class:'axis'},s);
     wk.forEach((d,di)=>{
@@ -513,7 +536,7 @@
     });
     host.appendChild(s);
     drawWeekRegular(wk);
-    document.getElementById('week-stat').innerHTML=interp(wk,'week');
+    document.getElementById('week-stat').innerHTML=badNote(wk)+interp(wk,'week');
   }
   drawWeek();
   function goWeek(dl){const i=weekIdx+dl; if(i>=0&&i<weeks.length){weekIdx=i;drawWeek();}}
@@ -888,6 +911,11 @@
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
     const ax=el('g',{class:'axis'},s);
     [1,5,10,15,20,25,dim].forEach(dd=>el('text',{x:xh((dd-0.5)*24),y:H-8,'text-anchor':'middle'},ax).textContent=dd);
+    SENSOR_BAD.forEach(b=>{ const f=b.from.slice(0,10), t=b.to.slice(0,10);
+      if(t.slice(0,7)<mk || f.slice(0,7)>mk) return;
+      const a0 = f.slice(0,7)<mk ? 0 : (+f.slice(8)-1)*24+_hm(b.from);
+      const a1 = t.slice(0,7)>mk ? dim*24 : (+t.slice(8)-1)*24+_hm(b.to);
+      badBand(s,xh(a0),xh(a1),pT,plotH,b.label); });
     // 전월 곡선을 흐리게 (같은 '일'끼리 겹치도록, 월 길이가 달라도 날짜 기준)
     const pmk=monthKeys[monthIdx-1];
     if(pmk){
@@ -926,7 +954,7 @@
     });
     host.appendChild(s);
     drawMonthShots(mk, dim);
-    document.getElementById('month-stat').innerHTML=monthInterp(mk,ds);
+    document.getElementById('month-stat').innerHTML=badNote(ds)+monthInterp(mk,ds);
   }
   drawMonth();
   function goMonth(dl){const i=monthIdx+dl; if(i>=0&&i<monthKeys.length){monthIdx=i;drawMonth();}}
@@ -958,6 +986,14 @@
     const g=el('g',{class:'grid'},s);
     [100,200,300,400,500].filter(v=>v<=yMax).forEach(v=>{ el('line',{x1:pL,y1:y(v),x2:W-pR,y2:y(v)},g);
       el('text',{x:pL-6,y:y(v)+3,'text-anchor':'end'},g).textContent=v; });
+    // 센서 이상 기간 띠
+    SENSOR_BAD.forEach(b=>{
+      const pos=ts=>{ const mk=ts.slice(0,7), j=months.indexOf(mk); if(j<0) return null;
+        const dim=new Date(+mk.slice(0,4), +mk.slice(5,7), 0).getDate();
+        return pL+(j+((+ts.slice(8,10)-1)+_hm(ts)/24)/dim)/n*plotW; };
+      const x0=pos(b.from), x1=pos(b.to); if(x0==null||x1==null) return;
+      el('rect',{x:x0,y:pT,width:Math.max(2,x1-x0),height:plotH,fill:'#8a8f98',opacity:.3},s);
+    });
     // 글라진 12 증량(7/11) 세로 점선 — 7월 칸 왼쪽 경계
     // 이벤트 마커 (EVENTS 공용 정의)
     // 이벤트 — 라벨이 겹치지 않게 x가 가까우면 아래층으로 내려 배치
@@ -1066,9 +1102,10 @@
         const gap=Math.round(((l.t + (prevTag?24:0)) - prior.h)*60);
         pinfo=` · 직전주사 ${prevTag}${prior.t} ${prior.reg?'글라진':'레귤러'}${bg!=null?`(${bg})`:''} · ${fmtDur(gap)} 뒤`; }
       const comp=suspectCompression(day,l)?' · 🛏️ 센서 압박 의심':'';
+      const bh=badHours(l.date), bad=bh&&l.t>=bh[0]&&l.t<=bh[1]?' · ▒ 센서 이상 기간':'';
       return `<div class="low-item"><span class="dt">${fmtDate(l.date)}</span>
        <span class="val">${l.val} mg/dL</span>
-       <span class="meta">${fmtT(l.t)}경${pinfo}${comp}</span></div>`;
+       <span class="meta">${fmtT(l.t)}경${pinfo}${comp}${bad}</span></div>`;
     };
     // 월별 그룹 (최신 월이 위, 최신 월만 펼침)
     const byM={};
