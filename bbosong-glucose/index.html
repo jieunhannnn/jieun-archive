@@ -214,11 +214,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20261023160507"></script>
-<script src="shots_history.js?v=20261023160507"></script>
-<script src="fluid.js?v=20261023160507"></script>
-<script src="labs.js?v=20261023160507"></script>
-<script src="data.js?v=20261023160507"></script>
+<script src="history.js?v=20261026221136"></script>
+<script src="shots_history.js?v=20261026221136"></script>
+<script src="fluid.js?v=20261026221136"></script>
+<script src="labs.js?v=20261026221136"></script>
+<script src="data.js?v=20261026221136"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -356,6 +356,7 @@
     {date:'2026-09-01', label:'수액 60ml×3·혈압약 시작', short:'수액·혈압약', color:'#0e9f9f'},
     {date:'2026-09-08', label:'수액 50ml×4로 변경',      short:'수액50×4', color:'#0e9f9f'},
     {date:'2026-09-29', label:'글라진 10.5 증량·수액 250ml', short:'글10.5·수250', color:'var(--accent)'},
+    {date:'2026-10-26', label:'수액 70ml×4로 변경',      short:'수액70×4', color:'#0e9f9f'},
   ];
   // 센서 이상 기간 — 값을 믿기 어려운 구간 (회색 띠로 전 차트 공통 표시)
   // 2026-10-16 교체한 센서: 주사 직후 몇 분 만에 200 넘게 떨어졌다 회복하는 가짜 급락 반복 → 10/22 고장으로 교체
