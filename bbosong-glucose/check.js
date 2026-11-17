@@ -75,7 +75,8 @@ detail.filter(d => (d.shots || []).length).forEach(d => {
   if (r > 6) W(`${d.date}: 레귤러 ${r}회 — 이례적으로 많음`);
 });
 // 실측 범위를 넘어선(아직 오지 않은) 주사 기록 — 자동 채움이 미래를 찍는 사고 방지
-detail.forEach(d => {
+// 마지막 날만 본다. 지난 날은 센서 공백이 있어도 8시/20시를 채우는 게 규칙 (2026-11-17)
+detail.slice(-1).forEach(d => {
   if (!d.pts || !d.pts.length) return;
   const last = d.pts[d.pts.length - 1][0];
   (d.shots || []).forEach(s => {

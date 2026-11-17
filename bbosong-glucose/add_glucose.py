@@ -62,7 +62,7 @@ def _num(x):
     except ValueError:
         return None
 
-def build_day(d, R, H, shots=None, recent_dose=DEFAULT_LONG_U):
+def build_day(d, R, H, shots=None, recent_dose=DEFAULT_LONG_U, is_last_day=False):
     pts = []
     for m in range(0, 1440, 5):
         v = None
@@ -99,8 +99,9 @@ def build_day(d, R, H, shots=None, recent_dose=DEFAULT_LONG_U):
     obj['shots'] = shots or []   # 리브레 CSV의 실제 주사 기록 (유형 4)
     # CSV에 정규 슬롯(아침 4~12시·저녁 16~24시) 기록이 없으면 8시/20시로 자동 보완.
     # 지은님 루틴이 오전·오후 8시 고정이라, 앱 입력을 빠뜨린 날을 메운다. (2026-09-03 지시)
-    # ⚠️ 아직 오지 않은 시각은 넣지 않는다 — 그날 실측이 도달한 시각까지만.
-    last_h = pts[-1][0] if pts else 0
+    # ⚠️ 아직 오지 않은 시각은 넣지 않는다 — CSV의 마지막 날만 실측이 도달한 시각까지.
+    #    지난 날은 센서 공백(교체 등)으로 실측이 끊겨도 8시/20시를 채운다. (2026-11-17 지시)
+    last_h = (pts[-1][0] if pts else 0) if is_last_day else 24
     # 용량 우선순위: ① 그날 CSV에 기록된 글라진 용량 → ② 직전 날짜 용량
     known = [sh.split('|')[2] for sh in obj['shots']
              if len(sh.split('|')) > 2 and sh.split('|')[1] == 'g']
@@ -136,6 +137,7 @@ def main():
     RT, HIST, SHOTS = parse_csv(csv_path, start)
 
     added = []
+    last_day = max(set(RT) | set(HIST))
     for d in sorted(set(RT) | set(HIST)):
         if d in have: continue
         # CSV 기록 + 기존(손으로 넣은) 기록을 합친다. 같은 슬롯이면 CSV가 우선.
@@ -147,7 +149,7 @@ def main():
                       c.split('|')[1:2] == old_sh.split('|')[1:2] for c in csv_shots)
             if not dup: merged.append(old_sh)
         merged.sort()
-        obj = build_day(d, RT[d], HIST[d], merged)   # 용량은 CSV값 → 없으면 기본 10u
+        obj = build_day(d, RT[d], HIST[d], merged, is_last_day=(d == last_day))   # 용량은 CSV값 → 없으면 기본 10u
         if obj:
             arr.append(obj); added.append(obj)
 
