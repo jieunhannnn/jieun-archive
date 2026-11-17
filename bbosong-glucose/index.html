@@ -194,7 +194,7 @@
 
 <div class="card">
   <h2>패턴 요약</h2>
-  <p class="cap" style="margin:0 0 10px">레귤러를 끊기 전후를 나란히 비교해요. 보라색이 <b>배제 후</b> 구간이에요.</p>
+  <p class="cap" style="margin:0 0 10px">레귤러를 끊기 전·끊은 뒤·다시 맞기 시작한 뒤를 나란히 비교해요. 보라색이 <b>가장 최근 구간</b>이에요. (배제 후에는 센서 이상 기간 10/16~10/22이 섞여 있어 최저값·저혈당이 실제보다 나쁠 수 있어요)</p>
   <div id="pattern-compare"></div>
   <ul class="insights">
     <li><span class="ico">▒</span><div><b>센서 이상 기간 10/16 11:10 ~ 10/22 10:29</b> — 10/16에 바꾼 센서가 아침·저녁 주사 직후 몇 분 만에 200 넘게 떨어졌다 바로 회복하는 <b>가짜 급락</b>을 반복했어요 (10/16 저녁 324→95, 4분). 결국 10/22 고장 나 교체했어요. 이 기간의 최저값·변동폭은 실제가 아니라고 보세요.</div></li>
@@ -214,11 +214,11 @@
 
 <p class="note">그래프에서 읽은 근사값이라 ±20 정도 오차가 있어요. 용량 조정은 꼭 수의사와 상의하세요.<br>새 날짜는 <b>data.js</b>에 한 줄 추가하면 자동 반영돼요.</p>
 
-<script src="history.js?v=20261117172613"></script>
-<script src="shots_history.js?v=20261117172613"></script>
-<script src="fluid.js?v=20261117172613"></script>
-<script src="labs.js?v=20261117172613"></script>
-<script src="data.js?v=20261117172613"></script>
+<script src="history.js?v=20261117172830"></script>
+<script src="shots_history.js?v=20261117172830"></script>
+<script src="fluid.js?v=20261117172830"></script>
+<script src="labs.js?v=20261117172830"></script>
+<script src="data.js?v=20261117172830"></script>
 <script>
 (function(){
   const data = (window.GLUCOSE||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -715,36 +715,42 @@
   }
 
   // ---- 통합 비교표 (전체 vs 이번 주, 데이터 추가 시 자동 갱신) ----
-  // 비교 구간: 전체 / 레귤러 배제 전 / 배제 후 (EVENTS의 '레귤러 안 놓기' 날짜 기준)
+  // 비교 구간: 전체 / 레귤러 배제 전 / 배제 후 / 재개 후 (EVENTS 날짜 기준 — 사건이 생기면 열이 자동으로 늘어남)
   const EXCL = (EVENTS.find(e=>e.label.includes('레귤러 안 놓기'))||{}).date;
-  const after = data.filter(d=>d.date>=EXCL);
+  const RESUME = (EVENTS.find(e=>e.label.includes('레귤러 다시'))||{}).date;
+  const after = data.filter(d=>d.date>=EXCL && (!RESUME || d.date<RESUME));
   const before = data.filter(d=>d.date<EXCL).slice(-Math.max(after.length,5));   // 직전 동일 일수(최소 5일)
-  const A=periodStats(data), Bf=periodStats(before), Af=periodStats(after);
+  const resumed = RESUME ? data.filter(d=>d.date>=RESUME) : [];
+  const COLS=[['전체',data],['배제 전',before],['배제 후',after]];
+  if(resumed.length) COLS.push(['재개 후',resumed]);
+  const ST=COLS.map(c=>periodStats(c[1]));
+  const f=(k,fmt=v=>v??'–')=>ST.map(x=>fmt(x[k]));
   const rows=[
-    ['평균 혈당', A.avg, Bf.avg, Af.avg, ''],
-    ['목표(100–300) 비율', A.target+'%', Bf.target+'%', Af.target+'%', ''],
-    ['400 이상 <span class="sub">하루 평균</span>', fmtDur(A.hiMin), fmtDur(Bf.hiMin), fmtDur(Af.hiMin), ''],
-    ['300 초과 비율', A.over300+'%', Bf.over300+'%', Af.over300+'%', ''],
-    ['최고 / 최저', A.max+'·'+A.min, Bf.max+'·'+Bf.min, Af.max+'·'+Af.min, ''],
-    ['일 변동폭 <span class="sub">최고−최저</span>', A.range, Bf.range, Af.range, ''],
-    ['보폭 안정률 <span class="sub">30분 ±35 이내</span>', A.stable+'%', Bf.stable+'%', Af.stable+'%', ''],
-    ['최장 완만 구간', fmtDur(A.longest), fmtDur(Bf.longest), fmtDur(Af.longest), ''],
-    ['저혈당', A.lowDays+'일', Bf.lowDays+'일', Af.lowDays+'일', 'warn'],
-    ['오전 <span class="sub">0–12시</span>', A.am??'–', Bf.am??'–', Af.am??'–', ''],
-    ['└ 새벽 <span class="sub">0–6시</span>', A.dawn??'–', Bf.dawn??'–', Af.dawn??'–', ''],
-    ['└ 아침 <span class="sub">6–12시</span>', A.morning??'–', Bf.morning??'–', Af.morning??'–', ''],
-    ['오후 <span class="sub">12–24시</span>', A.pm??'–', Bf.pm??'–', Af.pm??'–', ''],
-    ['└ 낮 <span class="sub">12–18시</span>', A.noon??'–', Bf.noon??'–', Af.noon??'–', ''],
-    ['└ 저녁 <span class="sub">18–24시</span>', A.eve??'–', Bf.eve??'–', Af.eve??'–', ''],
-    ['주사 전 <span class="sub">아침·저녁</span>', (A.preAM??'–')+'·'+(A.prePM??'–'), (Bf.preAM??'–')+'·'+(Bf.prePM??'–'), (Af.preAM??'–')+'·'+(Af.prePM??'–'), ''],
-    ['하루 주사', A.shots+'회', Bf.shots+'회', Af.shots+'회', ''],
+    ['평균 혈당', f('avg'), ''],
+    ['목표(100–300) 비율', f('target',v=>v+'%'), ''],
+    ['400 이상 <span class="sub">하루 평균</span>', f('hiMin',fmtDur), ''],
+    ['300 초과 비율', f('over300',v=>v+'%'), ''],
+    ['최고 / 최저', ST.map(x=>x.max+'·'+x.min), ''],
+    ['일 변동폭 <span class="sub">최고−최저</span>', f('range'), ''],
+    ['보폭 안정률 <span class="sub">30분 ±35 이내</span>', f('stable',v=>v+'%'), ''],
+    ['최장 완만 구간', f('longest',fmtDur), ''],
+    ['저혈당', f('lowDays',v=>v+'일'), 'warn'],
+    ['오전 <span class="sub">0–12시</span>', f('am'), ''],
+    ['└ 새벽 <span class="sub">0–6시</span>', f('dawn'), ''],
+    ['└ 아침 <span class="sub">6–12시</span>', f('morning'), ''],
+    ['오후 <span class="sub">12–24시</span>', f('pm'), ''],
+    ['└ 낮 <span class="sub">12–18시</span>', f('noon'), ''],
+    ['└ 저녁 <span class="sub">18–24시</span>', f('eve'), ''],
+    ['주사 전 <span class="sub">아침·저녁</span>', ST.map(x=>(x.preAM??'–')+'·'+(x.prePM??'–')), ''],
+    ['하루 주사', f('shots',v=>v+'회'), ''],
   ];
+  const last=COLS.length-1;   // 가장 최근 구간을 강조
+  const rng=c=>c[1].length?`${fmtDate(c[1][0].date)}~${c[0]==='전체'||c===COLS[last]?'':fmtDate(c[1][c[1].length-1].date)}`:'';
   document.getElementById('pattern-compare').innerHTML=
-    `<table class="cmp"><thead><tr><th>지표</th>
-       <th>전체<span class="sub">${A.n}일</span></th>
-       <th>배제 전<span class="sub">${Bf.n}일</span></th>
-       <th class="hl">배제 후<span class="sub">${Af.n}일</span></th></tr></thead><tbody>`+
-    rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[4]}">${r[1]}</td><td class="${r[4]}">${r[2]}</td><td class="${r[4]} hl">${r[3]}</td></tr>`).join('')+
+    `<table class="cmp"><thead><tr><th>지표</th>`+
+    COLS.map((c,k)=>`<th${k===last?' class="hl"':''}>${c[0]}<span class="sub">${c[1].length}일 · ${rng(c)}</span></th>`).join('')+
+    `</tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r[0]}</td>`+r[1].map((v,k)=>`<td class="${r[2]}${k===last?' hl':''}">${v}</td>`).join('')+`</tr>`).join('')+
     `</tbody></table>`;
 
   // ---- 일별 요약 통합 (히스토리 + 상세) — 월간 그래프·월별 추이 공용 ----
